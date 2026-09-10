@@ -200,4 +200,71 @@ def main():
     p.add_argument("--days", type=int, default=59)
     p.add_argument("--swing", type=int, default=50, help="bars for trailing swing hi/lo")
     p.add_argument("--vol-window", type=int, default=78)
-    p.add_argument("--imb", type=float,
+       p.add_argument("--imb", type=float, default=0.4, help="absorption imbalance threshold")
+    p.add_argument("--volz", type=float, default=1.0, help="absorption volume z-score threshold")
+    p.add_argument("--split", type=float, default=0.6)
+    p.add_argument("--n-perm", type=int, default=500)
+    a = p.parse_args()
+
+    daily = load_daily(a.ticker)
+    trend_by_date = daily_trend_filter(daily)
+
+    intraday = load_intraday(a.ticker, a.days)
+    trend_up = merge_trend_onto_intraday(intraday, trend_by_date)
+    fib_705, fib_886, swing_hi, swing_lo = fib_zone(intraday, a.swing)
+    imbalance, vol_z = compute_imbalance(intraday, vol_window=a.vol_window)
+
+    entry, stop_level = tag_absorption_reversal(
+        intraday, trend_up, fib_705, fib_886, imbalance, vol_z, a.imb, a.volz)
+    fwd = forward_returns(intraday["Close"])
+
+    days_s = pd.Series(intraday.index.date, index=intraday.index)
+    uniq_days = sorted(days_s.unique())
+    cut_day = uniq_days[int(len(uniq_days) * a.split)]
+    in_mask, out_mask = days_s < cut_day, days_s >= cut_day
+
+    print(f"{a.ticker}  {intraday.index[0]} -> {intraday.index[-1]}  "
+          f"({len(intraday)} bars, {len(uniq_days)} sessions)")
+    print(f"in-sample:  {uniq_days[0]} -> {cut_day}")
+    print(f"out-sample: {cut_day} -> {uniq_days[-1]}")
+    print(f"long setups fired: {int(entry.fillna(False).sum())} "
+          f"(uptrend pullback + absorption + dominance-shift confirm)")
+
+    for label, mask in [("IN-SAMPLE (design)", in_mask),
+                        ("OUT-OF-SAMPLE (verdict)", out_mask)]:
+        print(f"\n=== {label} ===")
+        ent, fw = entry[mask], fwd.loc[mask]
+        n = int(ent.fillna(False).sum())
+        if n < 15:
+            print(f"only {n} setups - too few to test, widen --days, "
+                  f"--swing, or loosen --imb/--volz")
+            continue
+
+        s = signed_stats(ent, fw)
+        print(s.to_string(index=False, formatters={
+            "mean_ret": "{:+.3%}".format, "hit_rate": "{:.1%}".format,
+            "t_stat": "{:.2f}".format}))
+
+        p_val, observed, _ = permutation_test(ent, fw, n_perm=a.n_perm)
+        sig = "[SIGNIFICANT at 0.05]" if p_val < 0.05 else "[not significant]"
+        print(f"\nomnibus permutation test (max |t| across "
+              f"{len(HORIZONS_BARS)} horizons): max|t|={observed:.2f}  "
+              f"p={p_val:.4f}  {sig}")
+
+        rr = r_multiple_check(intraday[mask], ent, stop_level[mask])
+        if rr["n"] > 0:
+            print(f"\nR-multiple gut-check (structural stop, 60min hold): "
+                  f"n={rr['n']}  avg R={rr['avg_r']:+.2f}  "
+                  f"win rate={rr['win_rate']:.1%}")
+            print("(video claims ~60-65% win rate / ~1.5-2R average - "
+                  "compare against that, and remember an independent "
+                  "backtest of this exact video scored 32% win rate)")
+
+    print("\nThis tests the EQUITY forward-return proxy for the decoded "
+          "mechanics, long side only, no costs/slippage applied yet. Not "
+          "a full engine.py backtest and not trading or financial advice.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
