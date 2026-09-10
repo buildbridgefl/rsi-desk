@@ -6,3 +6,4 @@ from strategies import trend  # noqa: F401,E402
 
 # Add your own here:
 # from strategies import my_rule  # noqa: F401
+from strategies import flow_absorption  # noqa: F401
