@@ -200,7 +200,7 @@ def main():
     p.add_argument("--days", type=int, default=59)
     p.add_argument("--swing", type=int, default=50, help="bars for trailing swing hi/lo")
     p.add_argument("--vol-window", type=int, default=78)
-       p.add_argument("--imb", type=float, default=0.4, help="absorption imbalance threshold")
+    p.add_argument("--imb", type=float, default=0.4, help="absorption imbalance threshold")
     p.add_argument("--volz", type=float, default=1.0, help="absorption volume z-score threshold")
     p.add_argument("--split", type=float, default=0.6)
     p.add_argument("--n-perm", type=int, default=500)
