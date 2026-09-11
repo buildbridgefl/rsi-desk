@@ -63,13 +63,13 @@ def _clv_imbalance(df, vol_window):
 @register(
     "flow_absorption",
     params=dict(imb_threshold=0.4, vol_threshold=1.0, vol_window=168,
-                ma_bars=1400, exit_bars=8),
+                ma_bars=500, exit_bars=8),
     description="Long when sellers dominate an hourly bar inside a daily "
                 "uptrend (absorption). Validated out-of-sample with a "
                 "regime-matched null. HOURLY BARS ONLY.",
 )
 def flow_absorption(df, imb_threshold=0.4, vol_threshold=1.0,
-                    vol_window=168, ma_bars=1400, exit_bars=8):
+                    vol_window=168, ma_bars=500, exit_bars=8):
     """
     If the caller supplies an 'uptrend' boolean column (the runner does,
     computed properly from DAILY data), it is used. Otherwise the trend
