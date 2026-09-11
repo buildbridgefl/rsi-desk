@@ -185,9 +185,15 @@ for tk in tickers:
             "ticker": tk,
             "price": round(float(last.Close), 2),
             "vs 200MA": f"{(px/ma - 1)*100:+.1f}%",
-            "imbalance": round(float(last.imbalance), 2),
-            "vol z": round(float(last.vol_z), 2),
+            "imbalance (forming)": round(float(last.imbalance), 2),
+            "vol z (forming)": round(float(last.vol_z), 2),
             "status": status,
+            # stats of the bar that ACTUALLY triggered "FIRED", if it did -
+            # this is prev, not last. Keeping it separate is what fixes the
+            # mismatch (e.g. showing a forming bar's low vol_z next to a
+            # FIRED banner that was earned by the completed bar before it).
+            "fired_imbalance": round(float(prev.imbalance), 2) if fired else None,
+            "fired_vol_z": round(float(prev.vol_z), 2) if fired else None,
         })
         detail[tk] = h
     except Exception as e:
@@ -204,18 +210,27 @@ def paint(v):
 
 
 st.subheader("Current state")
+show_cols = [c for c in df.columns if c not in ("fired_imbalance", "fired_vol_z")]
 if "status" in df.columns:
-    st.dataframe(df.style.map(paint, subset=["status"]),
+    st.dataframe(df[show_cols].style.map(paint, subset=["status"]),
                  use_container_width=True, hide_index=True)
 else:
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df[show_cols], use_container_width=True, hide_index=True)
+st.caption("imbalance/vol z above are the CURRENTLY FORMING bar, updating "
+           "live. They can look nothing like the numbers that actually "
+           "triggered a FIRED banner below — that used the bar BEFORE it, "
+           "which has already closed.")
 
 hits = df[df.get("status", pd.Series(dtype=str)) == "FIRED"]
 if not hits.empty:
     for _, r in hits.iterrows():
+        # use fired_imbalance/fired_vol_z (the bar that actually triggered
+        # this), NOT the "(forming)" columns, which are the NEW bar now
+        # building and can look completely different.
         st.success(f"**{r.ticker}** — absorption fired on the last "
                    f"completed bar @ {r.price} "
-                   f"(imbalance {r['imbalance']}, vol z {r['vol z']})")
+                   f"(imbalance {r['fired_imbalance']}, "
+                   f"vol z {r['fired_vol_z']})")
 else:
     st.caption("No fires on the most recent completed bar.")
 
