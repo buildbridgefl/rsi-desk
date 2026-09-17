@@ -36,6 +36,7 @@ import yfinance as yf
 st.set_page_config(page_title="Flow Absorption", page_icon="🌊", layout="wide")
 
 VOL_WINDOW = 168
+MIN_BAR_AGE = 15   # minutes before the forming bar's numbers are shown
 
 
 # ------------------------------------------------------------------ data
@@ -161,6 +162,12 @@ for tk in tickers:
         last = h.iloc[-1]
         prev = h.iloc[-2]
 
+        # a bar only a few minutes old always looks extreme (e.g. -1.00),
+        # so don't show its numbers until it has some time in it
+        now_et = pd.Timestamp.now(tz="America/New_York").tz_localize(None)
+        bar_age = (now_et - h.index[-1]).total_seconds() / 60
+        too_young = 0 <= bar_age < MIN_BAR_AGE
+
         # the last COMPLETED bar is the one to judge; the newest bar may
         # still be forming
         fired = (bool(prev.imbalance < -imb_thr) and
@@ -174,6 +181,8 @@ for tk in tickers:
             status = "gate closed (below 200MA)"
         elif fired:
             status = "FIRED"
+        elif too_young:
+            status = f"new bar ({bar_age:.0f}m old)"
         elif last.imbalance < -imb_thr and last.vol_z > volz_thr:
             status = "forming"
         elif last.imbalance < -imb_thr * 0.7 and last.vol_z > volz_thr * 0.7:
@@ -185,8 +194,8 @@ for tk in tickers:
             "ticker": tk,
             "price": round(float(last.Close), 2),
             "vs 200MA": f"{(px/ma - 1)*100:+.1f}%",
-            "imbalance (forming)": round(float(last.imbalance), 2),
-            "vol z (forming)": round(float(last.vol_z), 2),
+            "imbalance (forming)": None if too_young else round(float(last.imbalance), 2),
+            "vol z (forming)": None if too_young else round(float(last.vol_z), 2),
             "status": status,
             # stats of the bar that ACTUALLY triggered "FIRED", if it did -
             # this is prev, not last. Keeping it separate is what fixes the
@@ -212,12 +221,13 @@ def paint(v):
 st.subheader("Current state")
 show_cols = [c for c in df.columns if c not in ("fired_imbalance", "fired_vol_z")]
 if "status" in df.columns:
-    st.dataframe(df[show_cols].style.map(paint, subset=["status"]),
+    st.dataframe(df[show_cols].style.map(paint, subset=["status"])
+                 .format(precision=2),
                  use_container_width=True, hide_index=True)
 else:
     st.dataframe(df[show_cols], use_container_width=True, hide_index=True)
 st.caption("imbalance/vol z above are the CURRENTLY FORMING bar, updating "
-           "live. They can look nothing like the numbers that actually "
+           f"live, and stay blank for its first {MIN_BAR_AGE} minutes. They can look nothing like the numbers that actually "
            "triggered a FIRED banner below — that used the bar BEFORE it, "
            "which has already closed.")
 
