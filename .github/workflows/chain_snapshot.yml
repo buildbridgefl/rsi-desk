@@ -1,0 +1,39 @@
+name: Option chain snapshot
+
+on:
+  schedule:
+    # 9:45am, 12:30pm and 3:50pm ET on weekdays (EST and EDT both listed,
+    # so one of each pair fires in the right season — duplicates are harmless,
+    # they just add an extra row)
+    - cron: "45 13 * * 1-5"
+    - cron: "45 14 * * 1-5"
+    - cron: "30 17 * * 1-5"
+    - cron: "30 18 * * 1-5"
+    - cron: "50 19 * * 1-5"
+    - cron: "50 20 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r rsi-desk-v3/requirements.txt
+      - name: Record chains
+        working-directory: rsi-desk-v3
+        run: python -m alerts.snapshot_chain --tickers SPY,QQQ,IWM --expiries 2
+      - name: Commit the data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add rsi-desk-v3/data
+          git diff --staged --quiet || git commit -m "chain snapshot $(date -u +%Y-%m-%dT%H:%M)"
+          git pull --rebase --autostash || true
+          git push
