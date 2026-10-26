@@ -1,0 +1,38 @@
+name: Absorption alerts
+
+on:
+  schedule:
+    # A few minutes after each hourly bar closes (bars end at :30, the last at 4:00 pm ET).
+    # UTC hours cover both EDT and EST; runs outside market hours just find nothing new.
+    - cron: "34 13-21 * * 1-5"
+    - cron: "4 20,21 * * 1-5"
+  workflow_dispatch:        # run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install yfinance pandas numpy requests
+      - name: Check absorption
+        working-directory: rsi-desk-v3
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python -m alerts.absorption_alerts
+      - name: Save alert state
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add rsi-desk-v3/data/absorption_alert_state.json
+          git diff --staged --quiet || git commit -m "absorption alert state $(date -u +%Y-%m-%dT%H:%M)"
+          git pull --rebase --autostash || true
+          git push
