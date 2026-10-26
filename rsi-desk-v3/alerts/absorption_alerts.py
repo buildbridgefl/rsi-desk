@@ -107,4 +107,57 @@ def notify(title, body):
         except requests.RequestException as e:
             print(f"[warn] telegram: {e}", file=sys.stderr)
     if not sent:
-        print(f"[no channel]
+        print(f"[no channel] {title} | {body}")
+
+
+def main():
+    try:
+        state = json.loads(STATE.read_text())
+    except Exception:
+        state = {}
+    now = now_et()
+    for t in TICKERS:
+        try:
+            h = evaluate(load(t, "1h", "90d"), load(t, "1d", "2y"))
+        except Exception as e:
+            print(f"{t}: data failed: {e}", file=sys.stderr)
+            continue
+        done = h[h["end"] <= now]
+        if done.empty:
+            continue
+        bar_t = done.index[-1]
+        r = done.iloc[-1]
+        z = None if pd.isna(r["z"]) else float(r["z"])
+        gate_ok = r["gate"] is not None and not pd.isna(r["gate"]) and bool(r["gate"])
+        fire = gate_ok and r["imb"] < IMB_THR and z is not None and z > VOLZ_THR
+        lv, why = this_week_levels(t, now.normalize())
+        near = [p for p in lv if abs(float(r["Close"]) - p) / p <= NEAR]
+        watch = (not fire) and gate_ok and r["imb"] < IMB_THR and bool(near)
+        zs = "—" if z is None else f"{z:.2f}"
+        print(f"{now:%F %H:%M} ET {t} bar {bar_t:%m-%d %H:%M} close {r['Close']:.2f} "
+              f"imb {r['imb']:.2f} z {zs} gate {r['gate']} fire={fire} watch={watch} {why}")
+        if not (fire or watch) or now - r["end"] > MAX_AGE:
+            continue
+        key = f"{t}:{bar_t:%Y-%m-%d %H:%M}"
+        kind = "fire" if fire else "watch"
+        if state.get(key) == kind or state.get(key) == "fire":
+            continue
+        lvl = f" at {min(near, key=lambda p: abs(p - float(r['Close']))):.2f}" if near else ""
+        if fire:
+            title = f"{t} absorption FIRED{lvl}"
+        else:
+            title = f"{t} WATCH{lvl}: sellers pressing"
+        body = (f"{t} {r['Close']:.2f} · hour {bar_t:%H:%M}\n"
+                f"Imbalance {r['imb']:.2f} · volume vs usual z {zs}\n"
+                + ("Not a fire: volume hasn't confirmed." if not fire else "Edge tested by next day's close. Not a trade signal by itself."))
+        notify(title, body)
+        state[key] = kind
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    # keep the state file small
+    keep = dict(sorted(state.items())[-200:])
+    STATE.write_text(json.dumps(keep, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
