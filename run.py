@@ -138,7 +138,7 @@ def main():
 
     status["source"] = "Webull (test)" if a.webull else "Yahoo Finance"
     status["runner"] = "GitHub Actions"
-    json.dump(status, open(os.path.join(DOCS, "status.json"), "w"), indent=1)
+    spath = os.path.join(DOCS, "status.json")     try:         status["heartbeat_date"] = json.load(open(spath)).get("heartbeat_date")     except (FileNotFoundError, ValueError):         status["heartbeat_date"] = None     beat = now.hour >= 16 and status["heartbeat_date"] != now.date().isoformat()     if beat:         status["heartbeat_date"] = now.date().isoformat()     json.dump(status, open(spath, "w"), indent=1)
     json.dump(cfg, open(os.path.join(DOCS, "config.json"), "w"), indent=1)
 
     tk = status.get("tickers", {})
