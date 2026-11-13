@@ -5,20 +5,20 @@
    "session": "2026-11-12",
    "uptrend": true,
    "prior_close": 759.81,
-   "sma200": 728.65
+   "sma200": 731.31
   },
   "QQQ": {
    "last_bar": "Nov 12 16:00",
    "session": "2026-11-12",
    "uptrend": true,
    "prior_close": 690.38,
-   "sma200": 680.65
+   "sma200": 681.71
   }
  },
  "warnings": [],
  "write_cutoff": "2026-11-05",
  "bars_through": "Nov 12 16:00",
- "last_run": "2026-11-13T03:14:33Z",
- "source": "Webull (test)",
+ "last_run": "2026-11-13T04:08:02Z",
+ "source": "Yahoo Finance",
  "runner": "GitHub Actions"
 }
