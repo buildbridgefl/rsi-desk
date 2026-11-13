@@ -19,8 +19,8 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-DOCS = os.path.join(ROOT, "docs")
+ROOT = HERE
+DOCS = HERE
 sys.path.insert(0, HERE)
 import engine  # noqa: E402
 
