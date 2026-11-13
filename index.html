@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Overnight Desk</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Overnight Desk">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e121b">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;800&family=Chivo+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#f3f4f7; --panel:#fff; --ink:#151a26; --muted:#5d6577; --line:#dde1ea;
+  --accent:#2747c9; --c1:#2747c9; --c2:#7a3fc4; --c3:#b45f06; --c4:#0b7285; --c5:#a61e4d;
+  --win:#0f7a4a; --loss:#c0262d; --warnbg:#fff4dc; --warnink:#7a4b00;
+  --mono:"Chivo Mono",ui-monospace,Menlo,monospace; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e121b; --panel:#161b27; --ink:#e7eaf2; --muted:#9099ad; --line:#262d3d;
+  --accent:#7d95ff; --c1:#7d95ff; --c2:#c39bff; --c3:#f0a14a; --c4:#66d9e8; --c5:#f783ac;
+  --win:#3ecf8e; --loss:#ff6b70; --warnbg:#2c2410; --warnink:#f3c96b; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Chivo",system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:760px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:20px}
+h1{font-weight:800;font-size:30px;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.sub{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.sub b{color:var(--ink);font-weight:600}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);padding:2px 7px;border-radius:4px;color:var(--muted)}
+.gates{display:flex;flex-wrap:wrap;gap:8px}
+.gate{font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel)}
+.gate b{font-weight:600}
+.gate.open b{color:var(--win)} .gate.shut b{color:var(--loss)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 10px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:640px){.score{grid-template-columns:1fr}}
+.strat,.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.strat{display:flex;flex-direction:column;gap:10px;border-top:3px solid var(--c)}
+.strat .name{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.strat .name strong{font-size:16px;font-weight:800}
+.strat .name span{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.big{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.big small{font-size:12px;color:var(--muted);font-weight:400}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.kv div{display:flex;flex-direction:column}
+.kv small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.kv span{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:14px}
+.pos{color:var(--win)} .neg{color:var(--loss)}
+.note{background:var(--warnbg);color:var(--warnink);font-size:12.5px;padding:7px 10px;border-radius:6px}
+.msg{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.chart{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:3px;background:var(--c);vertical-align:middle;margin-right:5px}
+.trade{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;padding:11px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.trade:last-child{border-bottom:0}
+.when{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.what{min-width:0;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.chip{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:3px;border:1px solid var(--c,var(--line));color:var(--c,var(--muted));letter-spacing:.04em}
+.side{font-weight:600;font-size:13px}
+.px{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.res{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.res small{display:block;font-size:11px;color:var(--muted)}
+.why{grid-column:2/4;font-size:12.5px;color:var(--muted);min-width:0}
+.status{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.empty{color:var(--muted);font-size:14px;padding:14px 0}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;font-size:13px}
+.rules div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:4px}
+.rules span{color:var(--muted)} .rules b{font-family:var(--mono);font-weight:400;text-align:right}
+.foot{font-size:12px;color:var(--muted);line-height:1.5;margin:0}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <h1>Overnight Desk</h1>
+    <div class="sub"><span class="tag">SPY · QQQ · simulated · no real orders</span><span id="lastRun">Waiting for the first run</span><button id="reload" type="button">Refresh</button></div>
+  </header>
+
+  <section>
+    <h2>Trend gate today</h2>
+    <div class="gates" id="gates"><span class="msg">Shows after the first run.</span></div>
+    <p class="msg">A ticker only trades when its prior close is above its 200-day average. Gate closed means no new trades, by rule.</p>
+  </section>
+
+  <section class="filters">
+    <label for="src">Days</label>
+    <select id="src"><option value="live">Forward test (from Nov 12)</option><option value="all">Include replay (Oct 26 – Nov 11)</option></select>
+    <label for="ins">Scored as</label>
+    <select id="ins"><option value="sh">100 shares</option><option value="op">1 option (estimated)</option></select>
+  </section>
+
+  <section class="score" id="score"></section>
+
+  <section class="card">
+    <h2 id="curveTitle">Running P&amp;L</h2>
+    <div id="curve"></div>
+    <div class="legend"><span style="--c:var(--c1)"><i></i>SPY absorption</span><span style="--c:var(--c2)"><i></i>QQQ absorption</span><span style="--c:var(--c3)"><i></i>SPY RSI(5)</span><span style="--c:var(--c4)"><i></i>Level long</span><span style="--c:var(--c5)"><i></i>Level short</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Every fire, logged</h2>
+    <div id="tape"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Rules (fixed)</h2>
+    <div class="rules" id="rules"></div>
+    <p class="msg">Rules change only through Claude, and only as a new version scored separately. No stop, no target, no adding: the backtest edge was measured hold-to-next-close, so that is what gets tested.</p>
+  </section>
+
+  <p class="foot">Runs hourly in market hours on GitHub Actions with Yahoo Finance bars (replay rows through Nov 12 used Webull bars). The trade log lives in this repo's docs/trades.json; weekly levels are set in overnight/config.json. A signal uses only hourly bars that have closed and enters at the next bar's open; 2 bps cost each side. "Benchmark" is buying the same ticker at 10:30 on every gate-open day and holding to the next close. A signal has to beat that, not zero. Level alerts copy Muse's four-part check on hourly bars (level, pressing, heavy volume, trend gate), enter at the next bar's open and exit at the same day's close; their benchmark is the 10:30-to-close move, flipped for shorts. The short side has no backtest support. Option prices are Black-Scholes estimates (no real quotes, no IV change), so treat them as rough. Replay rows were computed after the fact. Fewer than 30 trades means nothing yet. A backtest or paper result is not an expected return. Not trading or financial advice.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const CELLS = [["ABS","SPY","SPY absorption","var(--c1)"],["ABS","QQQ","QQQ absorption","var(--c2)"],["RSI5","SPY","SPY RSI(5) dip","var(--c3)"],["LVLL","SPY","SPY level alert: long","var(--c4)"],["LVLS","SPY","SPY level alert: short","var(--c5)"]];
+let trades = [], config = null, status = null, loaded = false;
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = v => (v<0?"−$":"+$")+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (v,d=2) => (v<0?"−":"+")+Math.abs(v).toFixed(d)+"%";
+const cls = v => v>0?"pos":v<0?"neg":"";
+const op = () => $("#ins").value==="op";
+const R = t => op()? t.opt_ret_pct : t.ret_pct;
+const P = t => op()? t.opt_pnl : t.pnl;
+const mean = a => a.length? a.reduce((x,y)=>x+y,0)/a.length : 0;
+
+function pool(){ const all = $("#src").value==="all"; return trades.filter(t => all || !t.replay); }
+function closed(list){ return list.filter(t => t.status==="closed" && R(t)!=null); }
+
+function renderScore(list){
+  $("#score").innerHTML = CELLS.map(([s,k,name,c])=>{
+    const mine = list.filter(t=>t.strategy===s && t.ticker===k), cl = closed(mine);
+    const lvl = s.startsWith("LVL"), allBase = list.filter(t=>t.strategy==="BASE" && t.ticker===k);
+    const base = lvl ? (op()? [] : allBase.filter(t=>t.ret_day_pct!=null).map(t=>(s==="LVLS"?-1:1)*t.ret_day_pct)) : closed(allBase).map(R);
+    const n = cl.length, open = mine.length-n, wins = cl.filter(t=>R(t)>0).length;
+    const avg = mean(cl.map(R)), b = mean(base), edge = avg-b, tot = cl.reduce((a,t)=>a+P(t),0);
+    let note = "";
+    if (n===0) note = `<div class="msg">No closed trades yet${open?` (${open} open)`:""}.</div>`;
+    else if (n>=10 && wins===n) note = `<div class="note">100% wins over ${n} trades. Treat as a bug until checked.</div>`;
+    else if (n<30) note = `<div class="note">${n} closed trade${n>1?"s":""}. Too few to mean anything until 30.</div>`;
+    return `<div class="strat" style="--c:${c}">
+      <div class="name"><strong>${name}</strong><span>${s}</span></div>
+      <div class="big ${cls(tot)}">${n?money(tot):"$0.00"}</div>
+      <div class="kv">
+        <div><small>Trades</small><span>${n}${open?` +${open} open`:""}</span></div>
+        <div><small>Win rate</small><span>${n?Math.round(wins/n*100)+"%":"—"}</span></div>
+        <div><small>Avg per trade</small><span class="${cls(avg)}">${n?pct(avg,op()?1:2):"—"}</span></div>
+        <div><small>Benchmark avg</small><span>${base.length?pct(b,op()?1:2)+` (${base.length})`:"—"}</span></div>
+        <div><small>Edge vs benchmark</small><span class="${cls(edge)}">${n&&base.length?pct(edge,op()?1:2):"—"}</span></div>
+      </div>${note}</div>`;
+  }).join("");
+}
+
+function renderCurve(list){
+  $("#curveTitle").textContent = op()? "Running P&L ($, 1 estimated option per fire)" : "Running P&L ($, 100 shares per fire)";
+  const c = closed(list.filter(t=>t.strategy!=="BASE")).sort((a,b)=>(a.exit_date+a.id).localeCompare(b.exit_date+b.id));
+  if (c.length<2){ $("#curve").innerHTML = `<div class="empty">The curve appears after two closed trades.</div>`; return; }
+  const W=640,H=200,PD={l:58,r:14,t:12,b:22}, ser={}, cum={};
+  CELLS.forEach(([s,k])=>{ser[s+k]=[[0,0]];cum[s+k]=0});
+  c.forEach((t,i)=>{const id=t.strategy+t.ticker; if(!(id in cum)) return; cum[id]+=P(t); ser[id].push([i+1,cum[id]]);});
+  const ys = Object.values(ser).flat().map(p=>p[1]);
+  let lo=Math.min(0,...ys), hi=Math.max(0,...ys); if(hi===lo){hi+=50;lo-=50}
+  const pad=(hi-lo)*.1; lo-=pad; hi+=pad;
+  const x=i=>PD.l+(i/c.length)*(W-PD.l-PD.r), y=v=>PD.t+(hi-v)/(hi-lo)*(H-PD.t-PD.b);
+  let svg=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative paper P&L by signal">`;
+  [lo,0,hi].forEach(v=>{svg+=`<line x1="${PD.l}" x2="${W-PD.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v===0?"":'stroke-dasharray="3 4"'}/>
+    <text x="${PD.l-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="Chivo Mono,monospace">${v===0?"$0":(v<0?"−$":"$")+Math.abs(Math.round(v)).toLocaleString()}</text>`});
+  svg+=`<text x="${W-PD.r}" y="${H-4}" text-anchor="end" font-size="11" fill="var(--muted)">trade ${c.length}</text>`;
+  CELLS.forEach(([s,k,,col])=>{ const p=ser[s+k]; if(p.length<2) return;
+    svg+=`<polyline fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" points="${p.map(q=>x(q[0])+","+y(q[1])).join(" ")}"/>`;
+    const e=p[p.length-1]; svg+=`<circle cx="${x(e[0])}" cy="${y(e[1])}" r="4" fill="${col}"/>`; });
+  $("#curve").innerHTML = svg+"</svg>";
+}
+
+function renderTape(list){
+  const rows = list.filter(t=>t.strategy!=="BASE").sort((a,b)=>(b.date+b.entry_time).localeCompare(a.date+a.entry_time));
+  if (!rows.length){ $("#tape").innerHTML = `<div class="empty">${loaded?"No fires yet in the forward test. Each signal fires about once a week or less, and not at all while a trend gate is closed.":"Loading…"}</div>`; return; }
+  const col = t => (CELLS.find(c=>c[0]===t.strategy&&c[1]===t.ticker)||[])[3]||"var(--muted)";
+  $("#tape").innerHTML = rows.slice(0,300).map(t=>{
+    const r = R(t), p = P(t);
+    const res = t.status==="closed" && r!=null
+      ? `<div class="res ${cls(p)}">${money(p)}<small>${pct(r,op()?1:2)}</small></div>`
+      : `<div class="res"><span class="status">${t.status==="pending"?"Enters next bar":"Open"}</span></div>`;
+    let px = "";
+    if (op()) px = t.contract ? `${esc(t.contract)} · ${t.opt_entry?.toFixed(2)??""}${t.opt_exit!=null?" → "+t.opt_exit.toFixed(2):""}` : "no option estimate";
+    else px = t.entry!=null ? `${t.entry.toFixed(2)}${t.exit!=null?" → "+t.exit.toFixed(2)+" · close "+esc(t.exit_date.slice(5)):""}` : "";
+    const tags = [t.replay?"replay":"", t.overlap?"overlaps prior trade":"", t.event_entry?esc(t.event_entry)+" day (entry)":"", t.event_exit?esc(t.event_exit)+" day (exit)":""]
+      .filter(Boolean).map(x=>`<span class="chip">${x}</span>`).join(" ");
+    return `<div class="trade">
+      <div class="when">${t.date.slice(5)}<br>${esc(t.entry_time||"")}</div>
+      <div class="what"><span class="chip" style="--c:${col(t)}">${esc(t.ticker)} ${esc(t.strategy)}</span><span class="side">${t.side==="short"?"Short":"Long"}</span><span class="px">${px}</span> ${tags}</div>
+      ${res}<div class="why">${esc(t.why)}</div></div>`;
+  }).join("");
+}
+
+function renderRules(){
+  const c = config; if(!c){ $("#rules").innerHTML=`<div class="msg">Loading rules…</div>`; return; }
+  const r = [["Version",c.version],["Side","long only"],["Trend gate","prior close > "+c.sma_len+"-day avg"],
+    ["Absorption","imbalance < "+c.abs_clv_max+", volume z > "+c.abs_z_min],["Volume z","same hour, prior "+c.tod_sessions+" days"],
+    ["RSI dip (SPY)","hourly RSI("+c.rsi_len+") < "+c.rsi_lo],["Fires","first per day, per signal"],["Entry","next hourly bar's open"],
+    ["Exit","next session's close"],["Stop / target","none"],["Size","fixed, "+c.shares+" shares"],["Cost","" +c.cost_bps+" bps per side"],
+    ["Option est.",c.otm_pct+"% OTM, "+c.min_dte+"+ days"],["Forward test from",c.starts],
+    ["Level alerts (SPY)","press \u00b1"+(c.lvl_press??"")+", volume z > "+(c.lvl_z_min??"")],["Level distance","within "+(c.lvl_near_pct??"")+"% or touched"],
+    ["Level alert exit","same day's close"],["Weekly levels",((c.levels||[]).join(", ")||"none")+(c.levels_week?" (wk "+c.levels_week.slice(5)+")":"")]];
+  $("#rules").innerHTML = r.map(([k,v])=>`<div><span>${k}</span><b>${esc(v)}</b></div>`).join("");
+}
+
+function renderStatus(){
+  if (!status) return;
+  if (status.last_run){ const d = new Date(status.last_run);
+    $("#lastRun").innerHTML = `Last run <b>${d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})}</b>${status.bars_through?` · bars through ${esc(status.bars_through)}`:""}`; }
+  const tk = status.tickers||{};
+  const g = Object.keys(tk).map(k=>{ const v=tk[k]; if(v.uptrend==null) return "";
+    return `<div class="gate ${v.uptrend?"open":"shut"}">${esc(k)} <b>${v.uptrend?"OPEN":"CLOSED"}</b> · ${v.prior_close} vs ${v.sma200}</div>`; }).join("");
+  if (g) $("#gates").innerHTML = g + (status.warnings&&status.warnings.length?`<div class="note">${status.warnings.map(esc).join(" · ")}</div>`:"");
+}
+
+function renderAll(){ const l = pool(); renderScore(l); renderCurve(l); renderTape(l); renderRules(); renderStatus(); }
+$("#src").addEventListener("change",renderAll);
+$("#ins").addEventListener("change",renderAll);
+renderAll();
+
+async function load(){
+  const get = async f => { const r = await fetch(f+"?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error(f); return r.json(); };
+  try{
+    const [t, st, cf] = await Promise.all([get("trades.json"), get("status.json").catch(()=>null), get("config.json").catch(()=>null)]);
+    trades = Array.isArray(t)? t : []; status = st; config = cf; loaded = true; renderAll();
+  }catch(e){ $("#tape").innerHTML = `<div class="empty">Couldn't load the trade log. Check your connection and tap Refresh.</div>`; }
+}
+$("#reload").addEventListener("click", load);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") load(); });
+load();
+</script>
+</body></html>

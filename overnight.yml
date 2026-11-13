@@ -1,0 +1,39 @@
+name: Overnight Desk
+
+on:
+  schedule:
+    # :40 past each hour, 14:40-21:40 UTC on weekdays.
+    # Covers 9:40-4:40 pm ET in winter and 10:40-5:40 pm ET in summer.
+    # GitHub can start scheduled runs 5-30 minutes late.
+    - cron: "40 14-21 * * 1-5"
+  workflow_dispatch:        # run it by hand from the Actions tab
+
+permissions:
+  contents: write           # lets the run save docs/trades.json back to the repo
+
+concurrency:
+  group: overnight-desk
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install yfinance requests
+      - name: Run the paper desk (simulated, no orders)
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python overnight/run.py
+      - name: Save the trade log
+        run: |
+          git config user.name "overnight-desk-bot"
+          git config user.email "overnight-desk-bot@users.noreply.github.com"
+          git add docs/trades.json docs/status.json docs/config.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Overnight Desk run $(date -u +%FT%TZ)"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1

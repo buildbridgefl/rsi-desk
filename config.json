@@ -1,0 +1,50 @@
+{
+ "version": "o1",
+ "starts": "2026-11-12",
+ "tickers": [
+  "SPY",
+  "QQQ"
+ ],
+ "strategies": [
+  "ABS",
+  "RSI5",
+  "BASE",
+  "LVLS",
+  "LVLL"
+ ],
+ "shares": 100,
+ "cost_bps": 2.0,
+ "sma_len": 200,
+ "abs_clv_max": -0.4,
+ "abs_z_min": 1.0,
+ "tod_sessions": 20,
+ "tod_min": 10,
+ "rsi_len": 5,
+ "rsi_lo": 20.0,
+ "rsi_tickers": [
+  "SPY"
+ ],
+ "lvl_tickers": [
+  "SPY"
+ ],
+ "lvl_near_pct": 0.3,
+ "lvl_press": 0.4,
+ "lvl_z_min": 1.0,
+ "lvl_round": 10.0,
+ "levels": [
+  754.3,
+  781.51
+ ],
+ "levels_week": "2026-11-09",
+ "write_days": 7,
+ "contracts": 1,
+ "otm_pct": 0.5,
+ "min_dte": 7,
+ "rv_days": 20,
+ "iv_mult": 1.2,
+ "iv_floor": 0.12,
+ "rate": 0.04,
+ "spread_pct": 1.5,
+ "min_spread": 0.02,
+ "fee": 0.65
+}
