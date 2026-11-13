@@ -5,14 +5,15 @@ it never places, changes or cancels an order. No Claude usage.
 
 Each run:
   1. downloads SPY/QQQ hourly bars (with premarket) and daily bars from Yahoo,
-  2. runs overnight/engine.py (same rules as the Claude version),
-  3. merges new or changed trades into docs/trades.json (never deletes),
-  4. writes docs/status.json and docs/config.json for the page,
-  5. pushes a phone notification through ntfy for new signals / results.
+  2. runs engine.py (same rules as the Claude version),
+  3. merges new or changed trades into trades.json (never deletes),
+  4. writes status.json and config.json for the page,
+  5. pushes a phone notification through ntfy for new signals, results, and
+     one 'ran, no signals' heartbeat after the close each weekday.
 
-    NTFY_TOPIC=your-topic python overnight/run.py
+    NTFY_TOPIC=your-topic python run.py
 Test without the internet, from saved Webull JSON:
-    python overnight/run.py --webull hourly.json daily.json --now 2026-11-12T16:40
+    python run.py --webull hourly.json daily.json --now 2026-11-12T16:40
 """
 import argparse, csv, json, os, sys
 from datetime import datetime, timezone
@@ -138,7 +139,7 @@ def main():
 
     status["source"] = "Webull (test)" if a.webull else "Yahoo Finance"
     status["runner"] = "GitHub Actions"
-    spath = os.path.join(DOCS, "status.json")     try:         status["heartbeat_date"] = json.load(open(spath)).get("heartbeat_date")     except (FileNotFoundError, ValueError):         status["heartbeat_date"] = None     beat = now.hour >= 16 and status["heartbeat_date"] != now.date().isoformat()     if beat:         status["heartbeat_date"] = now.date().isoformat()     json.dump(status, open(spath, "w"), indent=1)
+    spath = os.path.join(DOCS, "status.json"); prev = json.load(open(spath)) if os.path.exists(spath) else {}; beat = now.hour >= 16 and prev.get("heartbeat_date") != now.date().isoformat(); status["heartbeat_date"] = now.date().isoformat() if beat else prev.get("heartbeat_date"); json.dump(status, open(spath, "w"), indent=1)
     json.dump(cfg, open(os.path.join(DOCS, "config.json"), "w"), indent=1)
 
     tk = status.get("tickers", {})
@@ -150,7 +151,7 @@ def main():
     elif closed:
         msg = ("PAPER RESULT", "\n".join(line_result(t) for t in closed) + f"\n{gates}\nPaper only.")
     else:
-        msg = None
+        msg = ("Overnight Desk ran", f"No signals today (bars through {status['bars_through']}).\n{gates}\nPaper only.") if beat else None
     print(json.dumps(status))
     if msg:
         print(msg[0]); print(msg[1])
