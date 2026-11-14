@@ -299,6 +299,8 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                                  "contracts": cfg["contracts"], "estimated": True})
                 if e["done"]:
                     base["ret_1h_pct"] = round((sgn * (e["c"] - S_in) / S_in - 2 * cost) * 100, 3)
+                if strat == "BASE" and session_closed(d):
+                    base["ret_day_pct"] = round(((day[-1]["c"] - S_in) / S_in - 2 * cost) * 100, 3)
                 x_d = d if exit_mode == "day" else nxt_d
                 if exit_mode != "day":
                     last_exit[strat] = nxt_d or "9999-12-31"
@@ -308,8 +310,6 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                 S_out = xbars[-1]["c"]
                 t_out = xbars[-1]["en"]
                 ret = sgn * (S_out - S_in) / S_in - 2 * cost
-                if strat == "BASE" and session_closed(d):
-                    base["ret_day_pct"] = round(((day[-1]["c"] - S_in) / S_in - 2 * cost) * 100, 3)
                 base.update({"status": "closed", "exit": round(S_out, 2), "exit_date": x_d,
                              "exit_time": t_out.strftime("%H:%M"),
                              "ret_pct": round(ret * 100, 3),
