@@ -1,11 +1,7 @@
 name: Overnight Desk
 
 on:
-  schedule:
-    # :40 past each hour, 14:40-21:40 UTC on weekdays.
-    # Covers 9:40-4:40 pm ET in winter and 10:40-5:40 pm ET in summer.
-    # GitHub can start scheduled runs 5-30 minutes late.
-    - cron: "40 14-21 * * 1-5"
+
   workflow_dispatch:        # run it by hand from the Actions tab
 
 permissions:
