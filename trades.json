@@ -1114,6 +1114,40 @@
 "opt_ret_pct":36.4
 },
 {
+"id":"o1-LVLS-SPY-2026-11-10",
+"strategy":"LVLS",
+"ticker":"SPY",
+"version":"o1",
+"date":"2026-11-10",
+"side":"short",
+"why":"SHORT setup: buyers pressing (+0.77) into ceiling round number 750.00, bar close 748.57, volume z 8.29, above 200-day avg",
+"signal_time":"14:30",
+"shares":100,
+"replay":true,
+"uptrend":true,
+"overlap":false,
+"entry_time":"14:30",
+"entry":748.57,
+"contract":"SPY Nov 20 744 P",
+"strike":744,
+"expiry":"2026-11-20",
+"iv_used":0.2672,
+"opt_entry":10.76,
+"contracts":1,
+"estimated":true,
+"ret_1h_pct":-0.151,
+"status":"closed",
+"exit":749.94,
+"exit_date":"2026-11-10",
+"exit_time":"16:00",
+"ret_pct":-0.223,
+"pnl":-166.94,
+"opt_exit":9.99,
+"opt_pnl":-78.01,
+"opt_ret_pct":-7.2,
+"level":"round number"
+},
+{
 "id":"o1-BASE-SPY-2026-11-11",
 "strategy":"BASE",
 "ticker":"SPY",
@@ -1288,6 +1322,7 @@
 "contracts":1,
 "estimated":true,
 "ret_1h_pct":-0.0,
+"ret_day_pct":0.662,
 "status":"open"
 },
 {
@@ -1313,6 +1348,7 @@
 "contracts":1,
 "estimated":true,
 "ret_1h_pct":0.061,
+"ret_day_pct":0.513,
 "status":"open"
 },
 {
