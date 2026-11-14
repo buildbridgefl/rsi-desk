@@ -130,9 +130,9 @@ def main():
                     new.append(t)
                 elif t["strategy"] != "BASE" and t["status"] == "closed":
                     closed.append(t)
-            elif log[i].get("status") != t["status"]:
-                log[i] = t
-                if t["strategy"] != "BASE" and t["status"] == "closed":
+            elif log[i].get("status") != t["status"] or (t.get("ret_day_pct") is not None and log[i].get("ret_day_pct") is None):
+                was = log[i].get("status"); log[i] = t
+                if t["strategy"] != "BASE" and t["status"] == "closed" and was != "closed":
                     closed.append(t)
         log.sort(key=lambda t: (t["date"], t["id"]))
         json.dump(log, open(tpath, "w"), indent=0, separators=(",", ":"))
