@@ -32,10 +32,13 @@
  "lvl_z_min": 1.0,
  "lvl_round": 10.0,
  "levels": [
-  754.3,
-  781.51
+  780.08,
+  760.99,
+  735.66,
+  716.64,
+  697.93
  ],
- "levels_week": "2026-11-09",
+ "levels_week": "2026-11-16",
  "write_days": 7,
  "contracts": 1,
  "otm_pct": 0.5,
