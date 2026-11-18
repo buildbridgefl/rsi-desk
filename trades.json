@@ -1725,5 +1725,30 @@
 "contracts":1,
 "estimated":true,
 "status":"open"
+},
+{
+"id":"o1-LVLL-SPY-2026-11-18",
+"strategy":"LVLL",
+"ticker":"SPY",
+"version":"o1",
+"date":"2026-11-18",
+"side":"long",
+"why":"LONG setup: sellers pressing (-0.60) into floor today's low 728.58, bar close 728.64, volume z 12.18, above 200-day avg",
+"signal_time":"11:30",
+"shares":100,
+"replay":false,
+"uptrend":true,
+"overlap":false,
+"entry_time":"11:30",
+"entry":728.5,
+"contract":"SPY Nov 27 733 C",
+"strike":733,
+"expiry":"2026-11-27",
+"iv_used":0.2793,
+"opt_entry":11.2,
+"contracts":1,
+"estimated":true,
+"status":"open",
+"level":"today's low"
 }
 ]
