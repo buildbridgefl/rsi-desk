@@ -1743,7 +1743,15 @@
 "estimated":true,
 "ret_1h_pct":-0.473,
 "ret_day_pct":-0.247,
-"status":"open"
+"status":"closed",
+"exit":715.78,
+"exit_date":"2026-11-19",
+"exit_time":"16:00",
+"ret_pct":-2.234,
+"pnl":-1635.21,
+"opt_exit":4.6,
+"opt_pnl":-685.03,
+"opt_ret_pct":-59.9
 },
 {
 "id":"o1-LVLL-SPY-2026-11-18",
