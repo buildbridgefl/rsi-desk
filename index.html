@@ -93,7 +93,10 @@ select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--pane
     <select id="src"><option value="live">Forward test (from Nov 12)</option><option value="all">Include replay (Oct 26 – Nov 11)</option></select>
     <label for="ins">Scored as</label>
     <select id="ins"><option value="sh">100 shares</option><option value="op">1 option (estimated)</option></select>
+    <label for="ex">Exits</label>
+    <select id="ex"><option value="hold">Hold to the close (current rules)</option><option value="plan">Scale-out plan (sell half, stop to entry, trail)</option></select>
   </section>
+  <p class="msg" id="exNote" hidden>Scale-out plan: stop beyond the signal bar; sell half at the next level; stop on the rest moves to entry; the rest exits at the level after that, on an hourly close below the prior hour's low, or at the same time as the current rules. Same entries, scored side by side. Shares only. Hourly bars can't tell which came first when one bar touches both a stop and a target, so those count as the stop.</p>
 
   <section class="score" id="score"></section>
 
@@ -125,21 +128,26 @@ const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">"
 const money = v => (v<0?"−$":"+$")+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct = (v,d=2) => (v<0?"−":"+")+Math.abs(v).toFixed(d)+"%";
 const cls = v => v>0?"pos":v<0?"neg":"";
-const op = () => $("#ins").value==="op";
-const R = t => op()? t.opt_ret_pct : t.ret_pct;
-const P = t => op()? t.opt_pnl : t.pnl;
+const plan = () => $("#ex").value==="plan";
+const op = () => !plan() && $("#ins").value==="op";
+const R = t => plan()? (t.so_status==="closed"? t.so_ret_pct : null) : op()? t.opt_ret_pct : t.ret_pct;
+const P = t => plan()? t.so_pnl : op()? t.opt_pnl : t.pnl;
 const mean = a => a.length? a.reduce((x,y)=>x+y,0)/a.length : 0;
 
 function pool(){ const all = $("#src").value==="all"; return trades.filter(t => all || !t.replay); }
-function closed(list){ return list.filter(t => t.status==="closed" && R(t)!=null); }
+function closed(list){ return list.filter(t => (plan()? t.so_status==="closed" : t.status==="closed") && R(t)!=null); }
 
 function renderScore(list){
   $("#score").innerHTML = CELLS.map(([s,k,name,c])=>{
     const mine = list.filter(t=>t.strategy===s && t.ticker===k), cl = closed(mine);
     const lvl = s.startsWith("LVL"), allBase = list.filter(t=>t.strategy==="BASE" && t.ticker===k);
-    const base = lvl ? (op()? [] : allBase.filter(t=>t.ret_day_pct!=null).map(t=>(s==="LVLS"?-1:1)*t.ret_day_pct)) : closed(allBase).map(R);
-    const n = cl.length, open = mine.length-n, wins = cl.filter(t=>R(t)>0).length;
-    const avg = mean(cl.map(R)), b = mean(base), edge = avg-b, tot = cl.reduce((a,t)=>a+P(t),0);
+    let base = lvl ? (op()? [] : allBase.filter(t=>t.ret_day_pct!=null).map(t=>(s==="LVLS"?-1:1)*t.ret_day_pct)) : closed(allBase).map(R);
+    const n = cl.length, open = plan()? mine.filter(t=>t.so_status==="open").length : mine.length-n, wins = cl.filter(t=>R(t)>0).length;
+    const avg = mean(cl.map(R)), tot = cl.reduce((a,t)=>a+P(t),0);
+    // plan mode: compare with the SAME trades held to the close (paired), not with the benchmark
+    if (plan()) base = cl.filter(t=>t.status==="closed" && t.ret_pct!=null).map(t=>t.ret_pct);
+    const pairedPlan = plan()? mean(cl.filter(t=>t.status==="closed" && t.ret_pct!=null).map(R)) : null;
+    const b = mean(base), edge = (plan()? pairedPlan : avg) - b;
     let note = "";
     if (n===0) note = `<div class="msg">No closed trades yet${open?` (${open} open)`:""}.</div>`;
     else if (n>=10 && wins===n) note = `<div class="note">100% wins over ${n} trades. Treat as a bug until checked.</div>`;
@@ -151,14 +159,14 @@ function renderScore(list){
         <div><small>Trades</small><span>${n}${open?` +${open} open`:""}</span></div>
         <div><small>Win rate</small><span>${n?Math.round(wins/n*100)+"%":"—"}</span></div>
         <div><small>Avg per trade</small><span class="${cls(avg)}">${n?pct(avg,op()?1:2):"—"}</span></div>
-        <div><small>Benchmark avg</small><span>${base.length?pct(b,op()?1:2)+` (${base.length})`:"—"}</span></div>
-        <div><small>Edge vs benchmark</small><span class="${cls(edge)}">${n&&base.length?pct(edge,op()?1:2):"—"}</span></div>
+        <div><small>${plan()?"Same trades held":"Benchmark avg"}</small><span>${base.length?pct(b,op()?1:2)+` (${base.length})`:"—"}</span></div>
+        <div><small>${plan()?"Plan vs holding":"Edge vs benchmark"}</small><span class="${cls(edge)}">${n&&base.length?pct(edge,op()?1:2):"—"}</span></div>
       </div>${note}</div>`;
   }).join("");
 }
 
 function renderCurve(list){
-  $("#curveTitle").textContent = op()? "Running P&L ($, 1 estimated option per fire)" : "Running P&L ($, 100 shares per fire)";
+  $("#curveTitle").textContent = plan()? "Running P&L ($, 100 shares per fire, scale-out plan)" : op()? "Running P&L ($, 1 estimated option per fire)" : "Running P&L ($, 100 shares per fire)";
   const c = closed(list.filter(t=>t.strategy!=="BASE")).sort((a,b)=>(a.exit_date+a.id).localeCompare(b.exit_date+b.id));
   if (c.length<2){ $("#curve").innerHTML = `<div class="empty">The curve appears after two closed trades.</div>`; return; }
   const W=640,H=200,PD={l:58,r:14,t:12,b:22}, ser={}, cum={};
@@ -188,14 +196,15 @@ function renderTape(list){
       ? `<div class="res ${cls(p)}">${money(p)}<small>${pct(r,op()?1:2)}</small></div>`
       : `<div class="res"><span class="status">${t.status==="pending"?"Enters next bar":"Open"}</span></div>`;
     let px = "";
-    if (op()) px = t.contract ? `${esc(t.contract)} · ${t.opt_entry?.toFixed(2)??""}${t.opt_exit!=null?" → "+t.opt_exit.toFixed(2):""}` : "no option estimate";
+    if (plan()) px = t.so_t1!=null ? `${t.entry.toFixed(2)} · stop ${t.so_stop} · half at ${t.so_t1} · rest at ${t.so_t2}${t.so_amb?" · bar touched both":""}` : "no plan (logged before the plan existed)";
+    else if (op()) px = t.contract ? `${esc(t.contract)} · ${t.opt_entry?.toFixed(2)??""}${t.opt_exit!=null?" → "+t.opt_exit.toFixed(2):""}` : "no option estimate";
     else px = t.entry!=null ? `${t.entry.toFixed(2)}${t.exit!=null?" → "+t.exit.toFixed(2)+" · close "+esc(t.exit_date.slice(5)):""}` : "";
     const tags = [t.replay?"replay":"", t.overlap?"overlaps prior trade":"", t.event_entry?esc(t.event_entry)+" day (entry)":"", t.event_exit?esc(t.event_exit)+" day (exit)":""]
       .filter(Boolean).map(x=>`<span class="chip">${x}</span>`).join(" ");
     return `<div class="trade">
       <div class="when">${t.date.slice(5)}<br>${esc(t.entry_time||"")}</div>
       <div class="what"><span class="chip" style="--c:${col(t)}">${esc(t.ticker)} ${esc(t.strategy)}</span><span class="side">${t.side==="short"?"Short":"Long"}</span><span class="px">${px}</span> ${tags}</div>
-      ${res}<div class="why">${esc(t.why)}</div></div>`;
+      ${res}<div class="why">${plan()&&t.so_steps&&t.so_steps.length? esc(t.so_steps.join(" → ")) : esc(t.why)}</div></div>`;
   }).join("");
 }
 
@@ -207,7 +216,7 @@ function renderRules(){
     ["Exit","next session's close"],["Stop / target","none"],["Size","fixed, "+c.shares+" shares"],["Cost","" +c.cost_bps+" bps per side"],
     ["Option est.",c.otm_pct+"% OTM, "+c.min_dte+"+ days"],["Forward test from",c.starts],
     ["Level alerts (SPY)","press \u00b1"+(c.lvl_press??"")+", volume z > "+(c.lvl_z_min??"")],["Level distance","within "+(c.lvl_near_pct??"")+"% or touched"],
-    ["Level alert exit","same day's close"],["Weekly levels",((c.levels||[]).join(", ")||"none")+(c.levels_week?" (wk "+c.levels_week.slice(5)+")":"")]];
+    ["Level alert exit","same day's close"],["Scale-out plan","half at next level, stop to entry, trail rest"],["Weekly levels",((c.levels||[]).join(", ")||"none")+(c.levels_week?" (wk "+c.levels_week.slice(5)+")":"")]];
   $("#rules").innerHTML = r.map(([k,v])=>`<div><span>${k}</span><b>${esc(v)}</b></div>`).join("");
 }
 
@@ -224,6 +233,7 @@ function renderStatus(){
 function renderAll(){ const l = pool(); renderScore(l); renderCurve(l); renderTape(l); renderRules(); renderStatus(); }
 $("#src").addEventListener("change",renderAll);
 $("#ins").addEventListener("change",renderAll);
+$("#ex").addEventListener("change",()=>{ $("#exNote").hidden = !plan(); $("#ins").disabled = plan(); renderAll(); });
 renderAll();
 
 async function load(){

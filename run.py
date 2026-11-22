@@ -74,6 +74,8 @@ def line_signal(t):
         s = f"{t['ticker']} {NAMES.get(t['strategy'], t['strategy'])} LONG, in {t.get('entry_time', 'next bar')} @ {t.get('entry', '?')}"
         if t.get("contract"):
             s += f", est. {t['contract']}"
+    if t.get("so_t1") is not None:
+        s += f" | plan: stop {t['so_stop']}, half at {t['so_t1']} ({t.get('so_t1_name', '')}), rest at {t['so_t2']}"
     tags = [x for x in ("overlap" if t.get("overlap") else "", t.get("event_entry", "")) if x]
     return s + (f" [{', '.join(tags)}]" if tags else "")
 
@@ -81,7 +83,8 @@ def line_signal(t):
 def line_result(t):
     opt = f", est. option {t['opt_ret_pct']:+.1f}%" if t.get("opt_ret_pct") is not None else ""
     return (f"{t['ticker']} {NAMES.get(t['strategy'], t['strategy'])} {t['side']}: {t['entry']} -> {t['exit']}, "
-            f"{t['ret_pct']:+.2f}% (${t['pnl']:+,.0f}/100 sh){opt}")
+            f"{t['ret_pct']:+.2f}% (${t['pnl']:+,.0f}/100 sh){opt}"
+            + (f", scale-out plan {t['so_ret_pct']:+.2f}%" if t.get("so_status") == "closed" else ""))
 
 
 def main():
@@ -109,14 +112,14 @@ def main():
         hourly, daily = os.path.join(tmp, "hourly.csv"), os.path.join(tmp, "daily.csv")
         fetch_yahoo(cfg["tickers"], hourly, daily)
 
-    out = os.path.join(tmp, "out.json")
-    trades, status = engine.run(hourly, daily, cfg_path, ev_path, out, now=now)
-
     tpath = os.path.join(DOCS, "trades.json")
     try:
         log = json.load(open(tpath))
     except (FileNotFoundError, ValueError):
         log = []
+    out = os.path.join(tmp, "out.json")
+    trades, status = engine.run(hourly, daily, cfg_path, ev_path, out, now=now,
+                                logged=[t for t in log if t.get("status") == "open"])
     by_id = {t["id"]: i for i, t in enumerate(log)}
     new, closed = [], []
     if status["warnings"]:
@@ -130,8 +133,14 @@ def main():
                     new.append(t)
                 elif t["strategy"] != "BASE" and t["status"] == "closed":
                     closed.append(t)
-            elif log[i].get("status") != t["status"] or (t.get("ret_day_pct") is not None and log[i].get("ret_day_pct") is None):
-                was = log[i].get("status"); log[i] = t
+            elif (log[i].get("status") != t["status"] or (t.get("ret_day_pct") is not None and log[i].get("ret_day_pct") is None)
+                  or t.get("so_status") != log[i].get("so_status")):
+                was = log[i].get("status")
+                if was == "closed":
+                    # a closed result is frozen: only add the benchmark day number and the plan fields
+                    log[i].update({k: v for k, v in t.items() if k.startswith("so_") or k == "ret_day_pct"})
+                else:
+                    log[i] = t
                 if t["strategy"] != "BASE" and t["status"] == "closed" and was != "closed":
                     closed.append(t)
         log.sort(key=lambda t: (t["date"], t["id"]))

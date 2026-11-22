@@ -7,6 +7,7 @@ What it tests (the two candidates that survived out-of-sample in the project):
 Both: long only, prior-day close above the 200-day average, first fire per
 day per ticker, entry at the NEXT hourly bar's open, exit at the NEXT
 session's close. No stop, no target, no adding.
+  Every trade is also scored with a scale-out exit plan (so_* fields): see scale_out().
   BASE : benchmark. Buys every uptrend day at 10:30 (open of the 2nd bar) and holds
          to the next session's close. A signal has to beat this, not zero.
 
@@ -56,6 +57,12 @@ DEFAULT_CONFIG = {
     "levels": [],                # weekly levels, used only in the week starting levels_week (a Monday)
     "levels_week": "",
     "write_days": 7,             # only emit trades this recent (unless --all)
+    # scale-out exit plan, scored ALONGSIDE the hold-to-close exit (same entries)
+    "so_on": True,
+    "so_min_gap_pct": 0.15,      # a target level must be at least this far from the last one
+    "so_max_pct": 4.0,           # look for target levels within this distance
+    "so_round": 5.0,             # round-number levels every $5 for targets
+    "so_pessimistic": True,      # bar touches stop and target: count the stop first
     # estimated option leg (no real quotes; Black-Scholes)
     "contracts": 1,
     "otm_pct": 0.5,
@@ -194,9 +201,80 @@ def gate(daily, date_str, cfg):
     return {"prior_close": prior[-1], "sma200": sma, "uptrend": prior[-1] > sma, "rv": rv}
 
 
+# ---------- scale-out exit plan ----------
+#  1. Stop: beyond the signal bar's extreme (long: its low).
+#  2. Target 1: next level in the trade's direction. Sell half there.
+#  3. Then the stop on the other half moves to the entry price.
+#  4. Runner: out at the next level after target 1, or when an hourly bar
+#     closes below the previous bar's low (long; mirrored for shorts).
+#  5. Whatever is left exits at the same time as the hold-to-close version.
+# Hourly bars only: when one bar touches both a stop and a target, the stop
+# is assumed first (pessimistic) and the trade is flagged so_amb.
+
+def scale_out(path, S_in, side, stop, t1, t2, last_bar, prev_bar, pess=True):
+    L = side == "long"
+    fav = lambda p: ((p - S_in) if L else (S_in - p)) / S_in
+    adv_hit = lambda b, lv: b["l"] <= lv if L else b["h"] >= lv
+    fav_hit = lambda b, lv: b["h"] >= lv if L else b["l"] <= lv
+    adv_gap = lambda b, lv: b["o"] <= lv if L else b["o"] >= lv
+    fav_gap = lambda b, lv: b["o"] >= lv if L else b["o"] <= lv
+    pos, real, hit1, st, steps, reason, amb = 1.0, 0.0, False, stop, [], None, False
+    prev = prev_bar
+    def when(b): return b["st"].strftime("%a %H:%M")
+    for b in path:
+        done = False
+        if not hit1:
+            if adv_gap(b, st):
+                real += pos * fav(b["o"]); steps.append(f"all out {b['o']:.2f} (gapped through stop) {when(b)}"); reason = "stop"; pos = 0; done = True
+            elif fav_gap(b, t1):
+                real += 0.5 * fav(b["o"]); pos = 0.5; hit1 = True; st = S_in
+                steps.append(f"half out {b['o']:.2f} (opened past target 1) {when(b)}")
+                if fav_gap(b, t2) or fav_hit(b, t2):
+                    px = b["o"] if fav_gap(b, t2) else t2
+                    if adv_hit(b, S_in) and not fav_gap(b, t2): amb = True; px = S_in
+                    real += 0.5 * fav(px); steps.append(f"rest out {px:.2f} {when(b)}"); reason = "target 2" if px != S_in else "stop at entry"; pos = 0; done = True
+                elif adv_hit(b, S_in):
+                    real += 0; steps.append(f"rest out {S_in:.2f} (stop at entry) {when(b)}"); reason = "stop at entry"; pos = 0; done = True; amb = True
+            elif adv_hit(b, st) and (pess or not fav_hit(b, t1)):
+                if fav_hit(b, t1): amb = True
+                real += pos * fav(st); steps.append(f"all out {st:.2f} (stop) {when(b)}"); reason = "stop"; pos = 0; done = True
+            elif fav_hit(b, t1):
+                real += 0.5 * fav(t1); pos = 0.5; hit1 = True; st = S_in
+                steps.append(f"half out {t1:.2f} (target 1) {when(b)}")
+                if adv_hit(b, S_in) and pess:
+                    amb = True; steps.append(f"rest out {S_in:.2f} (stop at entry) {when(b)}"); reason = "stop at entry"; pos = 0; done = True
+                elif fav_hit(b, t2):
+                    real += 0.5 * fav(t2); steps.append(f"rest out {t2:.2f} (target 2) {when(b)}"); reason = "target 2"; pos = 0; done = True
+                prev = b
+                if not done and b is last_bar:
+                    real += pos * fav(b["c"]); steps.append(f"rest out {b['c']:.2f} (time) {when(b)}"); reason = "target 1 + time"; pos = 0; done = True
+                if done: break
+                continue
+        else:
+            if adv_gap(b, st):
+                real += pos * fav(b["o"]); steps.append(f"rest out {b['o']:.2f} (gapped through entry) {when(b)}"); reason = "stop at entry"; pos = 0; done = True
+            elif fav_gap(b, t2):
+                real += pos * fav(b["o"]); steps.append(f"rest out {b['o']:.2f} (opened past target 2) {when(b)}"); reason = "target 2"; pos = 0; done = True
+            elif adv_hit(b, st) and (pess or not fav_hit(b, t2)):
+                if fav_hit(b, t2): amb = True
+                real += pos * fav(st); steps.append(f"rest out {st:.2f} (stop at entry) {when(b)}"); reason = "stop at entry"; pos = 0; done = True
+            elif fav_hit(b, t2):
+                real += pos * fav(t2); steps.append(f"rest out {t2:.2f} (target 2) {when(b)}"); reason = "target 2"; pos = 0; done = True
+            elif prev is not None and ((b["c"] < prev["l"]) if L else (b["c"] > prev["h"])):
+                real += pos * fav(b["c"]); steps.append(f"rest out {b['c']:.2f} (trail) {when(b)}"); reason = "trail"; pos = 0; done = True
+        if done:
+            break
+        if b is last_bar:
+            real += pos * fav(b["c"]); steps.append(f"{'rest' if hit1 else 'all'} out {b['c']:.2f} (time) {when(b)}")
+            reason = ("target 1 + time" if hit1 else "time"); pos = 0
+            break
+        prev = b
+    return {"real": real, "closed": pos == 0, "steps": steps, "reason": reason, "hit1": hit1, "amb": amb}
+
+
 # ---------- engine ----------
 
-def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False, now=None):
+def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False, now=None, logged=None):
     cfg = dict(DEFAULT_CONFIG)
     try:
         cfg.update(json.load(open(cfg_path)))
@@ -210,6 +288,8 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
     H = load_bars(hourly_path)
     D = load_bars(daily_path)
     trades, status = [], {"tickers": {}, "warnings": []}
+    settled = []
+    logged = logged or []
     cost = cfg["cost_bps"] / 1e4
 
     for sym in cfg["tickers"]:
@@ -247,6 +327,81 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
         }
         if sessions[-1] != today and now.weekday() < 5 and now.hour >= 11:
             status["warnings"].append(f"{sym}: no bars for today ({today}); last session {sessions[-1]}")
+
+        gidx = {id(b): i for i, b in enumerate(bars)}
+        last_bar_of = {d_: [b for b in by_day[d_] if b["done"]][-1] for d_ in sessions if any(b["done"] for b in by_day[d_])}
+
+        def target_levels(d_, k_, px):
+            """Levels known at the close of bar k_ on day d_ (no lookahead)."""
+            si_ = sessions.index(d_)
+            day_ = by_day[d_]
+            lv = []
+            if si_ > 0:
+                pb = by_day[sessions[si_ - 1]]
+                lv += [("yesterday's high", max(x["h"] for x in pb)), ("yesterday's low", min(x["l"] for x in pb)),
+                       ("yesterday's close", pb[-1]["c"])]
+            if d_ in pre:
+                lv += [("premarket high", pre[d_][0]), ("premarket low", pre[d_][1])]
+            lv += [("today's high", max(x["h"] for x in day_[:k_ + 1])), ("today's low", min(x["l"] for x in day_[:k_ + 1])),
+                   ("today's open", day_[0]["o"])]
+            dc = [r["c"] for r in daily if r["d"] < d_]
+            if len(dc) >= 50:
+                lv.append(("50-day average", sum(dc[-50:]) / 50))
+            if len(dc) >= 200:
+                lv.append(("200-day average", sum(dc[-200:]) / 200))
+            stp = cfg["so_round"]
+            base_ = math.floor(px / stp) * stp
+            lv += [("round number", base_ + j * stp) for j in range(-12, 14)]
+            wk = cfg.get("levels_week") or ""
+            if sym in cfg["lvl_tickers"] and wk and wk <= d_ <= (datetime.fromisoformat(wk) + timedelta(days=4)).date().isoformat():
+                lv += [("your weekly level", float(x)) for x in cfg.get("levels", [])]
+            return lv
+
+        def plan_for(d_, k_, S_in, side):
+            sig = by_day[d_][k_]
+            L = side == "long"
+            raw = sig["l"] if L else sig["h"]
+            ok = raw < S_in * (1 - 0.0005) if L else raw > S_in * (1 + 0.0005)
+            stop = raw if ok else (S_in * (1 - 0.0025) if L else S_in * (1 + 0.0025))
+            gap = cfg["so_min_gap_pct"] / 100; far = cfg["so_max_pct"] / 100
+            lv = target_levels(d_, k_, S_in)
+            if L:
+                c1 = sorted([x for x in lv if S_in * (1 + gap) <= x[1] <= S_in * (1 + far)], key=lambda x: x[1])
+            else:
+                c1 = sorted([x for x in lv if S_in * (1 - far) <= x[1] <= S_in * (1 - gap)], key=lambda x: -x[1])
+            R = abs(S_in - stop)
+            if c1:
+                t1n, t1 = c1[0]
+            else:
+                t1n, t1 = "1R", (S_in + R if L else S_in - R)
+            c2 = [x for x in c1 if (x[1] >= t1 * (1 + gap) if L else x[1] <= t1 * (1 - gap))]
+            if c2:
+                t2n, t2 = c2[0]
+            else:
+                t2n, t2 = "2x target 1", (t1 + (t1 - S_in) if L else t1 - (S_in - t1))
+            return stop, t1, t2, t1n, t2n
+
+        def run_plan(base, d_, k_, e, S_in, side, x_d):
+            if not cfg.get("so_on"):
+                return
+            stop, t1, t2, t1n, t2n = plan_for(d_, k_, S_in, side)
+            gi = gidx[id(e)]
+            if x_d and x_d in last_bar_of and session_closed(x_d):
+                lb = last_bar_of[x_d]; end = gidx[id(lb)]
+            else:
+                lb = None; end = len(bars) - 1
+            path = [b for b in bars[gi:end + 1] if b["done"]]
+            prev_b = bars[gi - 1] if gi > 0 else None
+            r = scale_out(path, S_in, side, stop, t1, t2, lb, prev_b, pess=cfg.get("so_pessimistic", True))
+            base.update({"so_stop": round(stop, 2), "so_t1": round(t1, 2), "so_t2": round(t2, 2),
+                         "so_t1_name": t1n, "so_t2_name": t2n, "so_steps": r["steps"],
+                         "so_hit1": r["hit1"], "so_amb": r["amb"]})
+            if r["closed"]:
+                ret = r["real"] - 2 * cost
+                base.update({"so_status": "closed", "so_exit_reason": r["reason"],
+                             "so_ret_pct": round(ret * 100, 3), "so_pnl": round(ret * S_in * cfg["shares"], 2)})
+            else:
+                base.update({"so_status": "open"})
 
         last_exit = {}   # strategy -> exit date of its latest trade (for the overlap tag)
         need = cfg["tod_sessions"]
@@ -299,6 +454,7 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                                  "contracts": cfg["contracts"], "estimated": True})
                 if e["done"]:
                     base["ret_1h_pct"] = round((sgn * (e["c"] - S_in) / S_in - 2 * cost) * 100, 3)
+                run_plan(base, d, k, e, S_in, side, d if exit_mode == "day" else nxt_d)
                 if strat == "BASE" and session_closed(d):
                     base["ret_day_pct"] = round(((day[-1]["c"] - S_in) / S_in - 2 * cost) * 100, 3)
                 x_d = d if exit_mode == "day" else nxt_d
@@ -401,11 +557,50 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                         fired["BASE"] = make("BASE", k, "Benchmark: bought every uptrend day at 10:30, held to next close")
             trades += [t for t in fired.values() if t]
 
+        # settle logged open trades this run did not re-emit (e.g. the data provider revised a bar)
+        emitted = {t["id"] for t in trades}
+        for lt in logged:
+            if lt.get("ticker") != sym or lt.get("status") != "open" or lt["id"] in emitted or lt.get("entry") is None:
+                continue
+            d0 = lt["date"]
+            if d0 not in by_day:
+                continue
+            eb = [b for b in by_day[d0] if b["st"].strftime("%H:%M") == lt.get("entry_time")]
+            if not eb:
+                continue
+            e0 = eb[0]; S0 = float(lt["entry"]); side0 = lt.get("side", "long")
+            sg0 = 1 if side0 == "long" else -1
+            si0 = sessions.index(d0)
+            xd0 = d0 if lt["strategy"] in ("LVLL", "LVLS") else (sessions[si0 + 1] if si0 + 1 < len(sessions) else None)
+            if not xd0 or not session_closed(xd0):
+                continue
+            xb = [x for x in by_day[xd0] if x["done"]]
+            S_out = xb[-1]["c"]; t_out = xb[-1]["en"]
+            ret0 = sg0 * (S_out - S0) / S0 - 2 * cost
+            nt = dict(lt)
+            nt.update({"status": "closed", "exit": round(S_out, 2), "exit_date": xd0, "exit_time": t_out.strftime("%H:%M"),
+                       "ret_pct": round(ret0 * 100, 3), "pnl": round(ret0 * S0 * cfg["shares"], 2), "settled": True})
+            if lt.get("strike") and lt.get("expiry") and lt.get("iv_used") and lt.get("opt_entry") is not None:
+                exp0 = datetime.fromisoformat(lt["expiry"]).replace(hour=16, tzinfo=ET)
+                call0 = side0 == "long"
+                mid0 = bs_price(S_out, lt["strike"], years_left(t_out, exp0), lt["iv_used"], cfg["rate"], call0)
+                po = max(0.0, mid0 - half_spread(mid0, cfg))
+                pc = (po - lt["opt_entry"]) * 100 - 2 * cfg["fee"]
+                nt.update({"opt_exit": round(po, 2), "opt_pnl": round(pc * lt.get("contracts", 1), 2),
+                           "opt_ret_pct": round(pc / (lt["opt_entry"] * 100) * 100, 1)})
+            k0 = by_day[d0].index(e0) - 1
+            if k0 >= 0:
+                run_plan(nt, d0, k0, e0, S0, side0, xd0)
+            settled.append(nt)
+
     all_last = [v["session"] for v in status["tickers"].values()]
     if all_last and not emit_all:
         cut = (datetime.fromisoformat(max(all_last)) - timedelta(days=cfg["write_days"])).date().isoformat()
         trades = [t for t in trades if t["date"] >= cut]
         status["write_cutoff"] = cut
+    trades += settled
+    if settled:
+        status["settled"] = [t["id"] for t in settled]
     lb = [v["last_bar"] for v in status["tickers"].values() if v["last_bar"]]
     status["bars_through"] = lb[0] if lb else "no bars"
     status["last_run"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
