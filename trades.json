@@ -1272,7 +1272,30 @@
 "contracts":1,
 "estimated":true,
 "ret_1h_pct":-0.0,
-"status":"open"
+"status":"closed",
+"exit":661.85,
+"exit_date":"2026-11-16",
+"exit_time":"16:00",
+"ret_pct":-2.011,
+"pnl":-1358.01,
+"settled":true,
+"opt_exit":5.65,
+"opt_pnl":-961.62,
+"opt_ret_pct":-63.1,
+"so_stop":672.3,
+"so_t1":679.84,
+"so_t2":681.99,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"200-day average",
+"so_steps":[
+"all out 672.30 (stop) Fri 10:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.463,
+"so_pnl":-312.93
 },
 {
 "id":"o1-ABS-SPY-2026-11-13",
@@ -1297,7 +1320,30 @@
 "contracts":1,
 "estimated":true,
 "ret_1h_pct":0.061,
-"status":"open"
+"status":"closed",
+"exit":740.05,
+"exit_date":"2026-11-16",
+"exit_time":"16:00",
+"ret_pct":-1.38,
+"pnl":-1035.01,
+"settled":true,
+"opt_exit":3.31,
+"opt_pnl":-664.68,
+"opt_ret_pct":-66.9,
+"so_stop":747.88,
+"so_t1":753.67,
+"so_t2":755.0,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"round number",
+"so_steps":[
+"all out 747.88 (stop) Fri 11:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.336,
+"so_pnl":-252.0
 },
 {
 "id":"o1-BASE-QQQ-2026-11-13",
@@ -1456,7 +1502,31 @@
 "opt_entry":12.59,
 "contracts":1,
 "estimated":true,
-"status":"open"
+"status":"closed",
+"exit":732.4,
+"exit_date":"2026-11-17",
+"exit_time":"16:00",
+"ret_pct":-1.607,
+"pnl":-1195.76,
+"settled":true,
+"opt_exit":6.93,
+"opt_pnl":-567.12,
+"opt_ret_pct":-45.0,
+"so_stop":743.31,
+"so_t1":745.2,
+"so_t2":747.96,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"premarket low",
+"so_steps":[
+"half out 745.20 (target 1) Mon 10:30",
+"rest out 744.06 (stop at entry) Mon 10:30"
+],
+"so_hit1":true,
+"so_amb":true,
+"so_status":"closed",
+"so_exit_reason":"stop at entry",
+"so_ret_pct":0.037,
+"so_pnl":27.24
 },
 {
 "id":"o1-BASE-SPY-2026-11-16",
@@ -1490,7 +1560,21 @@
 "pnl":-1199.76,
 "opt_exit":6.93,
 "opt_pnl":-569.06,
-"opt_ret_pct":-45.1
+"opt_ret_pct":-45.1,
+"so_stop":743.31,
+"so_t1":747.96,
+"so_t2":749.66,
+"so_t1_name":"premarket low",
+"so_t2_name":"today's open",
+"so_steps":[
+"all out 743.31 (stop) Mon 11:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.146,
+"so_pnl":-108.76
 },
 {
 "id":"o1-LVLL-SPY-2026-11-16",
@@ -1591,7 +1675,21 @@
 "pnl":-1199.76,
 "opt_exit":6.93,
 "opt_pnl":-569.06,
-"opt_ret_pct":-45.1
+"opt_ret_pct":-45.1,
+"so_stop":743.31,
+"so_t1":747.96,
+"so_t2":749.66,
+"so_t1_name":"premarket low",
+"so_t2_name":"today's open",
+"so_steps":[
+"all out 743.31 (stop) Mon 11:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.146,
+"so_pnl":-108.76
 },
 {
 "id":"o1-ABS-SPY-2026-11-17",
@@ -1616,7 +1714,30 @@
 "contracts":1,
 "estimated":true,
 "ret_1h_pct":-0.739,
-"status":"open"
+"status":"closed",
+"exit":730.33,
+"exit_date":"2026-11-18",
+"exit_time":"16:00",
+"ret_pct":-0.892,
+"pnl":-656.96,
+"settled":true,
+"opt_exit":8.38,
+"opt_pnl":-372.46,
+"opt_ret_pct":-30.8,
+"so_stop":736.07,
+"so_t1":738.07,
+"so_t2":739.76,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"today's high",
+"so_steps":[
+"all out 736.07 (stop) Tue 10:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.112,
+"so_pnl":-82.46
 },
 {
 "id":"o1-BASE-SPY-2026-11-17",
@@ -1650,7 +1771,21 @@
 "pnl":-656.96,
 "opt_exit":8.38,
 "opt_pnl":-372.17,
-"opt_ret_pct":-30.8
+"opt_ret_pct":-30.8,
+"so_stop":736.07,
+"so_t1":738.07,
+"so_t2":739.76,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"today's high",
+"so_steps":[
+"all out 736.07 (stop) Tue 10:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.112,
+"so_pnl":-82.46
 },
 {
 "id":"o1-LVLL-SPY-2026-11-17",
@@ -1684,7 +1819,21 @@
 "opt_exit":12.03,
 "opt_pnl":13.24,
 "opt_ret_pct":1.1,
-"level":"round number"
+"level":"round number",
+"so_stop":727.0,
+"so_t1":735.0,
+"so_t2":738.07,
+"so_t1_name":"round number",
+"so_t2_name":"yesterday's low",
+"so_steps":[
+"all out 732.40 (time) Tue 15:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"time",
+"so_ret_pct":0.093,
+"so_pnl":67.75
 },
 {
 "id":"o1-RSI5-SPY-2026-11-17",
@@ -1717,7 +1866,21 @@
 "pnl":-656.96,
 "opt_exit":8.38,
 "opt_pnl":-372.17,
-"opt_ret_pct":-30.8
+"opt_ret_pct":-30.8,
+"so_stop":736.07,
+"so_t1":738.07,
+"so_t2":739.76,
+"so_t1_name":"yesterday's low",
+"so_t2_name":"today's high",
+"so_steps":[
+"all out 736.07 (stop) Tue 10:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.112,
+"so_pnl":-82.46
 },
 {
 "id":"o1-BASE-SPY-2026-11-18",
@@ -1751,7 +1914,21 @@
 "pnl":-1635.21,
 "opt_exit":4.6,
 "opt_pnl":-685.03,
-"opt_ret_pct":-59.9
+"opt_ret_pct":-59.9,
+"so_stop":728.58,
+"so_t1":733.37,
+"so_t2":735.0,
+"so_t1_name":"today's open",
+"so_t2_name":"round number",
+"so_steps":[
+"all out 728.58 (stop) Wed 10:30"
+],
+"so_hit1":false,
+"so_amb":false,
+"so_status":"closed",
+"so_exit_reason":"stop",
+"so_ret_pct":-0.485,
+"so_pnl":-355.21
 },
 {
 "id":"o1-LVLL-SPY-2026-11-18",
