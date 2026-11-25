@@ -1,14 +1,14 @@
 {
  "tickers": {
   "SPY": {
-   "last_bar": "Nov 25 14:30",
+   "last_bar": "Nov 25 15:30",
    "session": "2026-11-25",
    "uptrend": false,
    "prior_close": 718.78,
    "sma200": 733.04
   },
   "QQQ": {
-   "last_bar": "Nov 25 14:30",
+   "last_bar": "Nov 25 15:30",
    "session": "2026-11-25",
    "uptrend": false,
    "prior_close": 638.1,
@@ -17,8 +17,8 @@
  },
  "warnings": [],
  "write_cutoff": "2026-11-18",
- "bars_through": "Nov 25 14:30",
- "last_run": "2026-11-25T19:35:26Z",
+ "bars_through": "Nov 25 15:30",
+ "last_run": "2026-11-25T20:35:27Z",
  "source": "Yahoo Finance",
  "runner": "GitHub Actions",
  "heartbeat_date": "2026-11-24"
