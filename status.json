@@ -21,7 +21,7 @@
  ],
  "write_cutoff": "2026-11-18",
  "bars_through": "Nov 25 16:00",
- "last_run": "2026-11-26T16:35:29Z",
+ "last_run": "2026-11-26T17:35:26Z",
  "source": "Yahoo Finance",
  "runner": "GitHub Actions",
  "heartbeat_date": "2026-11-25"
