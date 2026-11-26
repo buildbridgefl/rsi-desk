@@ -15,10 +15,13 @@
    "sma200": 683.39
   }
  },
- "warnings": [],
+ "warnings": [
+  "SPY: no bars for today (2026-11-26); last session 2026-11-25",
+  "QQQ: no bars for today (2026-11-26); last session 2026-11-25"
+ ],
  "write_cutoff": "2026-11-18",
  "bars_through": "Nov 25 16:00",
- "last_run": "2026-11-26T15:35:33Z",
+ "last_run": "2026-11-26T16:35:29Z",
  "source": "Yahoo Finance",
  "runner": "GitHub Actions",
  "heartbeat_date": "2026-11-25"
