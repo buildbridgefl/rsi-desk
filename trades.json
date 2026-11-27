@@ -2279,7 +2279,16 @@
 "so_exit_reason":"stop at entry",
 "so_ret_pct":0.091,
 "so_pnl":65.58,
-"status":"open"
+"ret_day_pct":1.051,
+"status":"closed",
+"exit":731.0,
+"exit_date":"2026-11-27",
+"exit_time":"16:00",
+"ret_pct":1.051,
+"pnl":760.08,
+"opt_exit":17.55,
+"opt_pnl":357.38,
+"opt_ret_pct":25.6
 },
 {
 "id":"o1-LVLLX-SPY-2026-11-27",
@@ -2319,7 +2328,15 @@
 "so_exit_reason":"stop at entry",
 "so_ret_pct":0.091,
 "so_pnl":65.58,
-"status":"open",
+"status":"closed",
+"exit":731.0,
+"exit_date":"2026-11-27",
+"exit_time":"16:00",
+"ret_pct":1.051,
+"pnl":760.08,
+"opt_exit":17.55,
+"opt_pnl":357.38,
+"opt_ret_pct":25.6,
 "level":"VWAP (hourly est.)"
 },
 {
@@ -2359,7 +2376,15 @@
 "so_exit_reason":"stop",
 "so_ret_pct":-0.218,
 "so_pnl":-158.01,
-"status":"open",
+"status":"closed",
+"exit":731.0,
+"exit_date":"2026-11-27",
+"exit_time":"16:00",
+"ret_pct":-0.822,
+"pnl":-596.01,
+"opt_exit":10.46,
+"opt_pnl":-270.58,
+"opt_ret_pct":-20.6,
 "level":"today's high"
 }
 ]
