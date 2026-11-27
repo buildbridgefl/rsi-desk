@@ -15,13 +15,13 @@
 <style>
 :root{
   --bg:#f3f4f7; --panel:#fff; --ink:#151a26; --muted:#5d6577; --line:#dde1ea;
-  --accent:#2747c9; --c1:#2747c9; --c2:#7a3fc4; --c3:#b45f06; --c4:#0b7285; --c5:#a61e4d;
+  --accent:#2747c9; --c1:#2747c9; --c2:#7a3fc4; --c3:#b45f06; --c4:#0b7285; --c5:#a61e4d; --c6:#2b8a3e; --c7:#e8590c;
   --win:#0f7a4a; --loss:#c0262d; --warnbg:#fff4dc; --warnink:#7a4b00;
   --mono:"Chivo Mono",ui-monospace,Menlo,monospace; color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0e121b; --panel:#161b27; --ink:#e7eaf2; --muted:#9099ad; --line:#262d3d;
-  --accent:#7d95ff; --c1:#7d95ff; --c2:#c39bff; --c3:#f0a14a; --c4:#66d9e8; --c5:#f783ac;
+  --accent:#7d95ff; --c1:#7d95ff; --c2:#c39bff; --c3:#f0a14a; --c4:#66d9e8; --c5:#f783ac; --c6:#8ce99a; --c7:#ffa94d;
   --win:#3ecf8e; --loss:#ff6b70; --warnbg:#2c2410; --warnink:#f3c96b; color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Chivo",system-ui,sans-serif;
@@ -103,7 +103,7 @@ select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--pane
   <section class="card">
     <h2 id="curveTitle">Running P&amp;L</h2>
     <div id="curve"></div>
-    <div class="legend"><span style="--c:var(--c1)"><i></i>SPY absorption</span><span style="--c:var(--c2)"><i></i>QQQ absorption</span><span style="--c:var(--c3)"><i></i>SPY RSI(5)</span><span style="--c:var(--c4)"><i></i>Level long</span><span style="--c:var(--c5)"><i></i>Level short</span></div>
+    <div class="legend"><span style="--c:var(--c1)"><i></i>SPY absorption</span><span style="--c:var(--c2)"><i></i>QQQ absorption</span><span style="--c:var(--c3)"><i></i>SPY RSI(5)</span><span style="--c:var(--c4)"><i></i>Level long</span><span style="--c:var(--c5)"><i></i>Level short</span><span style="--c:var(--c6)"><i></i>Level long, no filter</span><span style="--c:var(--c7)"><i></i>Level short, no filter</span></div>
   </section>
 
   <section class="card">
@@ -122,7 +122,7 @@ select,button{font:inherit;font-size:14px;color:var(--ink);background:var(--pane
 
 <script>
 const $ = s => document.querySelector(s);
-const CELLS = [["ABS","SPY","SPY absorption","var(--c1)"],["ABS","QQQ","QQQ absorption","var(--c2)"],["RSI5","SPY","SPY RSI(5) dip","var(--c3)"],["LVLL","SPY","SPY level alert: long","var(--c4)"],["LVLS","SPY","SPY level alert: short","var(--c5)"]];
+const CELLS = [["ABS","SPY","SPY absorption","var(--c1)"],["ABS","QQQ","QQQ absorption","var(--c2)"],["RSI5","SPY","SPY RSI(5) dip","var(--c3)"],["LVLL","SPY","SPY level alert: long","var(--c4)"],["LVLS","SPY","SPY level alert: short","var(--c5)"],["LVLLX","SPY","SPY level long, no 200-day filter","var(--c6)"],["LVLSX","SPY","SPY level short, no 200-day filter","var(--c7)"]];
 let trades = [], config = null, status = null, loaded = false;
 const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const money = v => (v<0?"−$":"+$")+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -140,8 +140,8 @@ function closed(list){ return list.filter(t => (plan()? t.so_status==="closed" :
 function renderScore(list){
   $("#score").innerHTML = CELLS.map(([s,k,name,c])=>{
     const mine = list.filter(t=>t.strategy===s && t.ticker===k), cl = closed(mine);
-    const lvl = s.startsWith("LVL"), allBase = list.filter(t=>t.strategy==="BASE" && t.ticker===k);
-    let base = lvl ? (op()? [] : allBase.filter(t=>t.ret_day_pct!=null).map(t=>(s==="LVLS"?-1:1)*t.ret_day_pct)) : closed(allBase).map(R);
+    const lvl = s.startsWith("LVL"), allBase = list.filter(t=>t.strategy===(s.endsWith("X")?"BASEX":"BASE") && t.ticker===k);
+    let base = lvl ? (op()? [] : allBase.filter(t=>t.ret_day_pct!=null).map(t=>(s.startsWith("LVLS")?-1:1)*t.ret_day_pct)) : closed(allBase).map(R);
     const n = cl.length, open = plan()? mine.filter(t=>t.so_status==="open").length : mine.length-n, wins = cl.filter(t=>R(t)>0).length;
     const avg = mean(cl.map(R)), tot = cl.reduce((a,t)=>a+P(t),0);
     // plan mode: compare with the SAME trades held to the close (paired), not with the benchmark
@@ -167,7 +167,7 @@ function renderScore(list){
 
 function renderCurve(list){
   $("#curveTitle").textContent = plan()? "Running P&L ($, 100 shares per fire, scale-out plan)" : op()? "Running P&L ($, 1 estimated option per fire)" : "Running P&L ($, 100 shares per fire)";
-  const c = closed(list.filter(t=>t.strategy!=="BASE")).sort((a,b)=>(a.exit_date+a.id).localeCompare(b.exit_date+b.id));
+  const c = closed(list.filter(t=>!t.strategy.startsWith("BASE"))).sort((a,b)=>(a.exit_date+a.id).localeCompare(b.exit_date+b.id));
   if (c.length<2){ $("#curve").innerHTML = `<div class="empty">The curve appears after two closed trades.</div>`; return; }
   const W=640,H=200,PD={l:58,r:14,t:12,b:22}, ser={}, cum={};
   CELLS.forEach(([s,k])=>{ser[s+k]=[[0,0]];cum[s+k]=0});
@@ -187,7 +187,7 @@ function renderCurve(list){
 }
 
 function renderTape(list){
-  const rows = list.filter(t=>t.strategy!=="BASE").sort((a,b)=>(b.date+b.entry_time).localeCompare(a.date+a.entry_time));
+  const rows = list.filter(t=>!t.strategy.startsWith("BASE")).sort((a,b)=>(b.date+b.entry_time).localeCompare(a.date+a.entry_time));
   if (!rows.length){ $("#tape").innerHTML = `<div class="empty">${loaded?"No fires yet in the forward test. Each signal fires about once a week or less, and not at all while a trend gate is closed.":"Loading…"}</div>`; return; }
   const col = t => (CELLS.find(c=>c[0]===t.strategy&&c[1]===t.ticker)||[])[3]||"var(--muted)";
   $("#tape").innerHTML = rows.slice(0,300).map(t=>{

@@ -1,6 +1,7 @@
 {
  "version": "o1",
  "starts": "2026-11-12",
+ "x_starts": "2026-11-27",
  "tickers": [
   "SPY",
   "QQQ"
@@ -10,7 +11,10 @@
   "RSI5",
   "BASE",
   "LVLS",
-  "LVLL"
+  "LVLL",
+  "LVLSX",
+  "LVLLX",
+  "BASEX"
  ],
  "shares": 100,
  "cost_bps": 2.0,

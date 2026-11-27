@@ -26,7 +26,8 @@ sys.path.insert(0, HERE)
 import engine  # noqa: E402
 
 ET = ZoneInfo("America/New_York")
-NAMES = {"ABS": "absorption", "RSI5": "RSI dip", "LVLL": "level alert", "LVLS": "level alert"}
+NAMES = {"ABS": "absorption", "RSI5": "RSI dip", "LVLL": "level alert", "LVLS": "level alert",
+         "LVLLX": "level alert (no 200-day filter)", "LVLSX": "level alert (no 200-day filter)"}
 
 
 def fetch_yahoo(tickers, hourly_csv, daily_csv):
@@ -64,10 +65,10 @@ def notify(title, body):
 
 
 def line_signal(t):
-    if t["strategy"] in ("LVLL", "LVLS"):
+    if t["strategy"] in ("LVLL", "LVLS", "LVLLX", "LVLSX"):
         why = t.get("why", "")
         lvl = why.split(" into ", 1)[1].split(",", 1)[0] if " into " in why else t.get("level", "")
-        s = f"LEVEL ALERT, {t['ticker']} {t['side'].upper()} setup at {lvl}. In {t.get('entry_time', 'next bar')} @ {t.get('entry', '?')}"
+        s = f"LEVEL ALERT{' (no 200-day filter)' if t['strategy'].endswith('X') else ''}, {t['ticker']} {t['side'].upper()} setup at {lvl}. In {t.get('entry_time', 'next bar')} @ {t.get('entry', '?')}"
         if t["side"] == "short":
             s += " (short side has no backtest support)"
     else:
@@ -129,9 +130,10 @@ def main():
             i = by_id.get(t["id"])
             if i is None:
                 log.append(t); by_id[t["id"]] = len(log) - 1
-                if t["strategy"] != "BASE" and t["date"] == now.date().isoformat():
+                quiet = t["strategy"].startswith("BASE") or t.get("replay")
+                if not quiet and t["date"] == now.date().isoformat():
                     new.append(t)
-                elif t["strategy"] != "BASE" and t["status"] == "closed":
+                elif not quiet and t["status"] == "closed":
                     closed.append(t)
             elif (log[i].get("status") != t["status"] or (t.get("ret_day_pct") is not None and log[i].get("ret_day_pct") is None)
                   or t.get("so_status") != log[i].get("so_status")):
@@ -141,7 +143,7 @@ def main():
                     log[i].update({k: v for k, v in t.items() if k.startswith("so_") or k == "ret_day_pct"})
                 else:
                     log[i] = t
-                if t["strategy"] != "BASE" and t["status"] == "closed" and was != "closed":
+                if not t["strategy"].startswith("BASE") and not t.get("replay") and t["status"] == "closed" and was != "closed":
                     closed.append(t)
         log.sort(key=lambda t: (t["date"], t["id"]))
         json.dump(log, open(tpath, "w"), indent=0, separators=(",", ":"))

@@ -8,6 +8,10 @@ Both: long only, prior-day close above the 200-day average, first fire per
 day per ticker, entry at the NEXT hourly bar's open, exit at the NEXT
 session's close. No stop, no target, no adding.
   Every trade is also scored with a scale-out exit plan (so_* fields): see scale_out().
+  LVLS/LVLL : level alerts (Muse's rules), uptrend days only, exit same-day close.
+  LVLSX/LVLLX : the SAME level rules with NO 200-day gate (added 2026-11-26),
+         scored separately so the gate can be judged. BASEX = 10:30-to-close
+         benchmark on every day, for these two. Fires before x_starts are replay.
   BASE : benchmark. Buys every uptrend day at 10:30 (open of the 2nd bar) and holds
          to the next session's close. A signal has to beat this, not zero.
 
@@ -37,7 +41,8 @@ DEFAULT_CONFIG = {
     "version": "o1",
     "starts": "2026-11-12",      # forward test begins; earlier dates are replays
     "tickers": ["SPY", "QQQ"],
-    "strategies": ["ABS", "RSI5", "BASE", "LVLS", "LVLL"],
+    "strategies": ["ABS", "RSI5", "BASE", "LVLS", "LVLL", "LVLSX", "LVLLX", "BASEX"],
+    "x_starts": "2026-11-27",    # ungated level variants count as live from this date
     "shares": 100,
     "cost_bps": 2.0,             # per side, as in the study
     "sma_len": 200,
@@ -411,6 +416,7 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
             g = gate(daily, d, cfg)
             if not g:
                 continue
+            up = bool(g["uptrend"])
             day = by_day[d]
             prev_days = sessions[si - need:si]
             nxt_d = sessions[si + 1] if si + 1 < len(sessions) else None
@@ -420,8 +426,9 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                 base = {"id": f"{cfg['version']}-{strat}-{sym}-{d}", "strategy": strat,
                         "ticker": sym, "version": cfg["version"], "date": d, "side": side,
                         "why": why, "signal_time": day[k]["en"].strftime("%H:%M"),
-                        "shares": cfg["shares"], "replay": d < cfg["starts"],
-                        "uptrend": True}
+                        "shares": cfg["shares"],
+                        "replay": d < (cfg.get("x_starts", cfg["starts"]) if strat.endswith("X") else cfg["starts"]),
+                        "uptrend": up}
                 if d in events:
                     base["event_entry"] = events[d]
                 prev_exit = last_exit.get(strat)
@@ -455,7 +462,7 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                 if e["done"]:
                     base["ret_1h_pct"] = round((sgn * (e["c"] - S_in) / S_in - 2 * cost) * 100, 3)
                 run_plan(base, d, k, e, S_in, side, d if exit_mode == "day" else nxt_d)
-                if strat == "BASE" and session_closed(d):
+                if strat in ("BASE", "BASEX") and session_closed(d):
                     base["ret_day_pct"] = round(((day[-1]["c"] - S_in) / S_in - 2 * cost) * 100, 3)
                 x_d = d if exit_mode == "day" else nxt_d
                 if exit_mode != "day":
@@ -482,13 +489,14 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                                  "opt_ret_pct": round(per_c / (prem_in * 100) * 100, 1)})
                 return base
 
-            if not g["uptrend"]:
-                continue
             fired = {}
             for k, b in enumerate(day):
                 if not b["done"]:
                     break
-                if "ABS" in cfg["strategies"] and "ABS" not in fired:
+                if "BASEX" in cfg["strategies"] and "BASEX" not in fired and sym in cfg["lvl_tickers"]:
+                    if k == 0 and b["slot"] == "09:30":
+                        fired["BASEX"] = make("BASEX", k, "Benchmark for ungated level alerts: every day 10:30 to close", exit_mode="day")
+                if up and "ABS" in cfg["strategies"] and "ABS" not in fired:
                     rng = b["h"] - b["l"]
                     clv = ((b["c"] - b["l"]) - (b["h"] - b["c"])) / rng if rng > 0 else 0.0
                     vols = [x["v"] for pd_ in prev_days for x in by_day[pd_] if x["slot"] == b["slot"]]
@@ -500,16 +508,18 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                             fired["ABS"] = make("ABS", k,
                                 f"Seller absorption {b['slot']} bar: close near low (imbalance {clv:.2f}), "
                                 f"volume z {z:.2f} vs same hour on prior {len(vols)} days, above 200-day avg")
-                if "RSI5" in cfg["strategies"] and "RSI5" not in fired and sym in cfg["rsi_tickers"]:
+                if up and "RSI5" in cfg["strategies"] and "RSI5" not in fired and sym in cfg["rsi_tickers"]:
                     if b.get("rsi") is not None and b["rsi"] < cfg["rsi_lo"]:
                         fired["RSI5"] = make("RSI5", k,
                             f"Hourly RSI(5) {b['rsi']:.1f} below {cfg['rsi_lo']:.0f} on the {b['slot']} bar, above 200-day avg")
-                if sym in cfg["lvl_tickers"] and ("LVLS" in cfg["strategies"] or "LVLL" in cfg["strategies"]):
+                if sym in cfg["lvl_tickers"] and any(x in cfg["strategies"] for x in ("LVLS", "LVLL", "LVLSX", "LVLLX")):
                     rng = b["h"] - b["l"]
                     press = (b["c"] - b["o"]) / rng if rng > 0 else 0.0
                     side = "short" if press >= cfg["lvl_press"] else "long" if press <= -cfg["lvl_press"] else None
-                    strat = {"short": "LVLS", "long": "LVLL"}.get(side)
-                    if strat and strat in cfg["strategies"] and strat not in fired:
+                    base_s = {"short": "LVLS", "long": "LVLL"}.get(side)
+                    want = [x for x in ([base_s] if up else []) + ([base_s + "X"] if base_s else [])
+                            if x and x in cfg["strategies"] and x not in fired]
+                    if want:
                         vols = [x["v"] for pd_ in prev_days for x in by_day[pd_] if x["slot"] == b["slot"]]
                         z = None
                         if len(vols) >= cfg["tod_min"]:
@@ -546,13 +556,15 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
                                 _, name, L = min(hits)
                                 who = "buyers" if side == "short" else "sellers"
                                 kind = "ceiling" if side == "short" else "floor"
-                                fired[strat] = make(strat, k,
-                                    f"{side.upper()} setup: {who} pressing ({press:+.2f}) into {kind} {name} {L:.2f}, "
-                                    f"bar close {b['c']:.2f}, volume z {z:.2f}, above 200-day avg",
-                                    side=side, exit_mode="day")
-                                if fired[strat]:
-                                    fired[strat]["level"] = name
-                if "BASE" in cfg["strategies"] and "BASE" not in fired:
+                                for strat in want:
+                                    fired[strat] = make(strat, k,
+                                        f"{side.upper()} setup: {who} pressing ({press:+.2f}) into {kind} {name} {L:.2f}, "
+                                        f"bar close {b['c']:.2f}, volume z {z:.2f}, {'above' if up else 'BELOW'} 200-day avg"
+                                        + ("" if up or not strat.endswith("X") else " (ungated variant)"),
+                                        side=side, exit_mode="day")
+                                    if fired[strat]:
+                                        fired[strat]["level"] = name
+                if up and "BASE" in cfg["strategies"] and "BASE" not in fired:
                     if k == 0 and b["slot"] == "09:30":
                         fired["BASE"] = make("BASE", k, "Benchmark: bought every uptrend day at 10:30, held to next close")
             trades += [t for t in fired.values() if t]
@@ -571,7 +583,7 @@ def run(hourly_path, daily_path, cfg_path, events_path, out_path, emit_all=False
             e0 = eb[0]; S0 = float(lt["entry"]); side0 = lt.get("side", "long")
             sg0 = 1 if side0 == "long" else -1
             si0 = sessions.index(d0)
-            xd0 = d0 if lt["strategy"] in ("LVLL", "LVLS") else (sessions[si0 + 1] if si0 + 1 < len(sessions) else None)
+            xd0 = d0 if lt["strategy"] in ("LVLL", "LVLS", "LVLLX", "LVLSX", "BASEX") else (sessions[si0 + 1] if si0 + 1 < len(sessions) else None)
             if not xd0 or not session_closed(xd0):
                 continue
             xb = [x for x in by_day[xd0] if x["done"]]
@@ -621,7 +633,7 @@ if __name__ == "__main__":
     ts, st = run(*a[:5], emit_all=emit_all, now=now)
     print(json.dumps(st))
     for t in ts:
-        if t["strategy"] == "BASE":
+        if t["strategy"] in ("BASE", "BASEX"):
             continue
         print(t["date"], t["ticker"], t["strategy"], t["status"], t.get("entry_time", ""),
               t.get("side", ""), t.get("entry", ""), "->", t.get("exit", ""), t.get("ret_pct", ""), t.get("opt_pnl", ""))
