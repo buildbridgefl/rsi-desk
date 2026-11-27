@@ -40,6 +40,7 @@ DTE = 5
 IV_MULT, IV_FLOOR, RATE = 1.2, 0.12, 0.04
 SPREAD_PCT, MIN_SPREAD, FEE = 1.5, 0.02, 0.65
 TEST_MONTHS = 6
+HOLIDAYS = {"2026-11-26", "2026-12-25", "2027-01-01"}
 
 
 def ncdf(x):
@@ -131,8 +132,12 @@ def simulate(bars4, daily, i, side, sessions, close_of):
     e = bars4[i]
     d_in = e["d"]
     si = sessions.index(d_in)
-    if si + DTE >= len(sessions):
-        return None
+    sessions = list(sessions)
+    while si + DTE >= len(sessions):          # future weekdays for the expiry date only
+        x = datetime.fromisoformat(sessions[-1]).date() + timedelta(days=1)
+        while x.weekday() >= 5 or x.isoformat() in HOLIDAYS:
+            x += timedelta(days=1)
+        sessions.append(x.isoformat())
     vol = rv20(daily, d_in)
     if vol is None:
         return None
@@ -149,6 +154,9 @@ def simulate(bars4, daily, i, side, sessions, close_of):
            "expiry": exp_d, "iv": round(iv, 3), "opt_in": round(p_in, 2)}
     for x, off in (("next", 1), ("3d", 3), ("expiry", DTE)):
         xd = sessions[si + off]
+        if xd not in close_of:                # exit day not reached yet: leave unscored
+            res[f"{x}_exit"] = res[f"{x}_pnl"] = res[f"{x}_ret"] = res[f"{x}_und"] = None
+            continue
         So = close_of[xd]
         t_out = datetime.fromisoformat(xd).replace(hour=16, tzinfo=ET)
         m_out = bs(So, K, (expiry - t_out).total_seconds() / (365 * 86400), iv, RATE, call)
@@ -162,6 +170,8 @@ def simulate(bars4, daily, i, side, sessions, close_of):
 
 
 def summarize(rows, bench, x, rng):
+    rows = [t for t in rows if t[f"{x}_ret"] is not None]
+    bench = [t for t in bench if t[f"{x}_ret"] is not None]
     if not rows:
         return None
     r = [t[f"{x}_ret"] for t in rows]
